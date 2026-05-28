@@ -51,6 +51,35 @@ export const STUDENT = {
     { name: "Créneau", done: false },
     { name: "Point de patinage", done: false },
   ],
+  documents: [
+    { name: "Pièce d'identité.pdf", status: "valid" as const, size: "1.2 Mo" },
+    { name: "Attestation de Recensement.pdf", status: "valid" as const, size: "480 Ko" },
+    { name: "Photos d'identité e-photo.jpeg", status: "valid" as const, size: "820 Ko" },
+    { name: "Justificatif de domicile.pdf", status: "pending" as const, size: "950 Ko" },
+  ],
+  history: [
+    {
+      date: "Mer. 21/05",
+      type: "Conduite urbaine",
+      instructor: "Karim B.",
+      comment:
+        "Bonne gestion du gabarit du véhicule, attention aux contrôles d'angles morts en changement de file.",
+    },
+    {
+      date: "Lun. 19/05",
+      type: "Manœuvres",
+      instructor: "Karim B.",
+      comment:
+        "Créneau bien exécuté côté droit. À retravailler : le demi-tour en 3 manœuvres dans une rue étroite.",
+    },
+    {
+      date: "Ven. 16/05",
+      type: "Conduite mixte",
+      instructor: "Sonia M.",
+      comment:
+        "Très bonne anticipation aux intersections. Pensez à relâcher l'embrayage plus progressivement au démarrage en côte.",
+    },
+  ],
 };
 
 export const INSTRUCTOR = {
