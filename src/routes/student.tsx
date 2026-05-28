@@ -11,6 +11,9 @@ import {
   Plus,
   CheckCircle2,
   Circle,
+  FileText,
+  Download,
+  MessageSquare,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
@@ -229,6 +232,64 @@ function StudentProfile() {
                 <Circle className="h-4 w-4 text-muted-foreground" />
               )}
               <span className={s.done ? "" : "text-muted-foreground"}>{s.name}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card>
+        <div className="mb-3 flex items-center gap-2">
+          <FileText className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Mes documents</h2>
+        </div>
+        <ul className="space-y-2">
+          {STUDENT.documents.map((d) => (
+            <li
+              key={d.name}
+              className="flex items-center gap-3 rounded-xl bg-secondary p-3"
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                <FileText className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{d.name}</p>
+                <p className="text-[11px] text-muted-foreground">{d.size}</p>
+              </div>
+              {d.status === "valid" ? (
+                <span className="rounded-full bg-success/15 px-2 py-1 text-[10px] font-semibold uppercase text-success">
+                  Validé ✔
+                </span>
+              ) : (
+                <span className="rounded-full bg-accent/20 px-2 py-1 text-[10px] font-semibold uppercase text-accent">
+                  En attente ⏳
+                </span>
+              )}
+              <button
+                type="button"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground"
+                aria-label={`Télécharger ${d.name}`}
+              >
+                <Download className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card>
+        <div className="mb-3 flex items-center gap-2">
+          <MessageSquare className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Livret d'apprentissage — historique</h2>
+        </div>
+        <ul className="space-y-3">
+          {STUDENT.history.map((h, i) => (
+            <li key={i} className="rounded-xl bg-secondary p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{h.type}</p>
+                <span className="text-[11px] text-muted-foreground">{h.date}</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Moniteur : {h.instructor}</p>
+              <p className="mt-2 text-sm italic text-foreground/90">« {h.comment} »</p>
             </li>
           ))}
         </ul>

@@ -51,17 +51,45 @@ export const STUDENT = {
     { name: "Créneau", done: false },
     { name: "Point de patinage", done: false },
   ],
+  documents: [
+    { name: "Pièce d'identité.pdf", status: "valid" as const, size: "1.2 Mo" },
+    { name: "Attestation de Recensement.pdf", status: "valid" as const, size: "480 Ko" },
+    { name: "Photos d'identité e-photo.jpeg", status: "valid" as const, size: "820 Ko" },
+    { name: "Justificatif de domicile.pdf", status: "pending" as const, size: "950 Ko" },
+  ],
+  history: [
+    {
+      date: "Mer. 21/05",
+      type: "Conduite urbaine",
+      instructor: "Karim B.",
+      comment:
+        "Bonne gestion du gabarit du véhicule, attention aux contrôles d'angles morts en changement de file.",
+    },
+    {
+      date: "Lun. 19/05",
+      type: "Manœuvres",
+      instructor: "Karim B.",
+      comment:
+        "Créneau bien exécuté côté droit. À retravailler : le demi-tour en 3 manœuvres dans une rue étroite.",
+    },
+    {
+      date: "Ven. 16/05",
+      type: "Conduite mixte",
+      instructor: "Sonia M.",
+      comment:
+        "Très bonne anticipation aux intersections. Pensez à relâcher l'embrayage plus progressivement au démarrage en côte.",
+    },
+  ],
 };
 
 export const INSTRUCTOR = {
   username: "moniteur_karim",
   fullName: "Karim Benali",
   today: [
-    { id: "l1", time: "08:00 – 10:00", student: "Jean Dupont", type: "Conduite", status: "done" },
-    { id: "l2", time: "10:00 – 12:00", student: "Aïcha Traoré", type: "Manœuvres", status: "done" },
-    { id: "l3", time: "14:00 – 16:00", student: "Jean Dupont", type: "Conduite", status: "current" },
-    { id: "l4", time: "16:00 – 18:00", student: "Marc Lefèvre", type: "Examen blanc", status: "upcoming" },
-    { id: "l5", time: "18:00 – 19:00", student: "Sara El M.", type: "Code", status: "upcoming" },
+    { id: "l1", time: "08:00 – 10:00", student: "Léa Martin", type: "Conduite urbaine", status: "done" },
+    { id: "l2", time: "10:00 – 12:00", student: "Hugo P.", type: "Manœuvres", status: "done" },
+    { id: "l3", time: "14:00 – 16:00", student: "Yanis K.", type: "Conduite mixte", status: "current" },
+    { id: "l4", time: "16:00 – 18:00", student: "Sara El M.", type: "Examen blanc", status: "upcoming" },
   ],
   skills: [
     "Démarrage / arrêt",
