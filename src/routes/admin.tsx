@@ -48,6 +48,8 @@ const DAYS = [
 
 function AdminPlanning() {
   const [idx, setIdx] = useState(3);
+  const [instructorIdx, setInstructorIdx] = useState(0);
+  const currentInstructor = INSTRUCTORS[instructorIdx];
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-2">
@@ -81,29 +83,70 @@ function AdminPlanning() {
         Aujourd'hui
       </button>
 
-      <div className="-mx-4 overflow-x-auto px-4">
-        <div className="flex gap-3" style={{ minWidth: `${INSTRUCTORS.length * 220}px` }}>
-          {INSTRUCTORS.map((name) => (
-            <div key={name} className="flex-1 rounded-2xl border border-border bg-card p-3">
-              <div className="mb-3 flex items-center gap-2 border-b border-border pb-2">
-                <div className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                  {name.charAt(0)}
-                </div>
-                <p className="text-sm font-semibold">{name}</p>
-              </div>
-              <ul className="space-y-2">
-                {(PLANNING[name] ?? []).map((l, i) => (
-                  <li key={i} className="rounded-xl bg-secondary p-2.5">
-                    <p className="text-[11px] font-semibold text-primary">{l.time}</p>
-                    <p className="mt-0.5 text-sm font-medium leading-tight">{l.student}</p>
-                    <p className="text-[11px] text-muted-foreground">{l.type}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+      {/* Mobile : sélecteur moniteur avec flèches */}
+      <div className="flex items-center justify-between rounded-2xl border border-border bg-card p-2 md:hidden">
+        <button
+          type="button"
+          onClick={() =>
+            setInstructorIdx((i) => (i - 1 + INSTRUCTORS.length) % INSTRUCTORS.length)
+          }
+          className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-foreground"
+          aria-label="Moniteur précédent"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="grid h-9 w-9 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+            {currentInstructor.charAt(0)}
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Moniteur</p>
+            <p className="text-sm font-semibold">{currentInstructor}</p>
+          </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setInstructorIdx((i) => (i + 1) % INSTRUCTORS.length)}
+          className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-foreground"
+          aria-label="Moniteur suivant"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
       </div>
+
+      {/* Mobile : colonne unique */}
+      <div className="md:hidden">
+        <InstructorColumn name={currentInstructor} />
+      </div>
+
+      {/* Desktop / tablette : grille responsive sans scroll horizontal */}
+      <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-3">
+        {INSTRUCTORS.map((name) => (
+          <InstructorColumn key={name} name={name} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InstructorColumn({ name }: { name: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3">
+      <div className="mb-3 flex items-center gap-2 border-b border-border pb-2">
+        <div className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+          {name.charAt(0)}
+        </div>
+        <p className="text-sm font-semibold">{name}</p>
+      </div>
+      <ul className="space-y-2">
+        {(PLANNING[name] ?? []).map((l, i) => (
+          <li key={i} className="rounded-xl bg-secondary p-2.5">
+            <p className="text-[11px] font-semibold text-primary">{l.time}</p>
+            <p className="mt-0.5 text-sm font-medium leading-tight">{l.student}</p>
+            <p className="text-[11px] text-muted-foreground">{l.type}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
