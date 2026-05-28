@@ -11,6 +11,9 @@ import {
   Plus,
   CheckCircle2,
   Circle,
+  FileText,
+  Download,
+  MessageSquare,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
