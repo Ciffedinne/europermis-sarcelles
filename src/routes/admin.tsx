@@ -193,20 +193,6 @@ function AdminStudents() {
   );
 }
 
-function AdminImport() {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-accent/40 bg-gradient-to-br from-accent/15 to-card p-4">
-        <p className="text-xs uppercase tracking-wider text-accent">Import rapide</p>
-        <p className="mt-1 text-sm">
-          Synchronisez votre planning ou importez un fichier CSV de secours pour mettre à jour les
-          données rapidement.
-        </p>
-      </div>
-
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4 text-left"
 type ImportedStudent = {
   civilite: string;
   nom: string;
