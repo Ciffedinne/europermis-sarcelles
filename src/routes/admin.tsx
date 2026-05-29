@@ -207,32 +207,224 @@ function AdminImport() {
       <button
         type="button"
         className="flex w-full items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4 text-left"
-      >
-        <span className="grid h-12 w-12 place-items-center rounded-xl bg-primary text-primary-foreground">
-          <Database className="h-5 w-5" />
-        </span>
-        <span className="flex-1">
-          <span className="block text-sm font-semibold">Option A — Synchronisation API</span>
-          <span className="block text-xs text-muted-foreground">
-            Connexion temps réel avec le système de l'auto-école.
-          </span>
-        </span>
-      </button>
+type ImportedStudent = {
+  civilite: string;
+  nom: string;
+  prenom: string;
+  dateNaissance: string;
+  lieuNaissance: string;
+  neph: string;
+};
 
-      <button
-        type="button"
-        className="flex w-full items-center gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-4 text-left"
-      >
-        <span className="grid h-12 w-12 place-items-center rounded-xl bg-accent text-accent-foreground">
-          <FileSpreadsheet className="h-5 w-5" />
-        </span>
-        <span className="flex-1">
-          <span className="block text-sm font-semibold">Option B — Import CSV de secours</span>
-          <span className="block text-xs text-muted-foreground">
-            Téléversez un fichier .csv si l'API est indisponible.
+function parseDateFR(d: string): number {
+  const m = d.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return Number.POSITIVE_INFINITY;
+  const [, dd, mm, yyyy] = m;
+  return new Date(`${yyyy}-${mm}-${dd}`).getTime();
+}
+
+function parseTxtTSV(text: string): ImportedStudent[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length < 2) throw new Error("Fichier vide");
+  const rows = lines.slice(1).map((line) => {
+    const cols = line.split("\t").map((c) => c.trim());
+    if (cols.length < 6) throw new Error("Format invalide : 6 colonnes attendues séparées par des tabulations");
+    return {
+      civilite: cols[0],
+      nom: cols[1],
+      prenom: cols[2],
+      dateNaissance: cols[3],
+      lieuNaissance: cols[4],
+      neph: cols[5],
+    };
+  });
+  return rows;
+}
+
+function AdminImport() {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [students, setStudents] = useState<ImportedStudent[]>([]);
+  const [imported, setImported] = useState<ImportedStudent[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [sortAsc, setSortAsc] = useState(true);
+
+  const handleFile = (file: File) => {
+    setError(null);
+    if (!file.name.toLowerCase().endsWith(".txt")) {
+      setError("Format invalide : seuls les fichiers .txt sont acceptés.");
+      setFileName(file.name);
+      setStudents([]);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = String(e.target?.result ?? "");
+        const parsed = parseTxtTSV(text);
+        setStudents(parsed);
+        setFileName(file.name);
+      } catch (err) {
+        setStudents([]);
+        setFileName(file.name);
+        setError(err instanceof Error ? err.message : "Erreur de lecture");
+      }
+    };
+    reader.onerror = () => setError("Impossible de lire le fichier.");
+    reader.readAsText(file, "utf-8");
+  };
+
+  const launchImport = () => {
+    if (students.length === 0) return;
+    setImported(students);
+    console.table(students);
+    toast.success(`Import réussi : ${students.length} élève${students.length > 1 ? "s" : ""} ajouté${students.length > 1 ? "s" : ""}.`);
+  };
+
+  const sortByDate = () => {
+    if (imported.length === 0) {
+      toast.error("Lancez d'abord un import.");
+      return;
+    }
+    const dir = sortAsc ? 1 : -1;
+    const sorted = [...imported].sort(
+      (a, b) => (parseDateFR(a.dateNaissance) - parseDateFR(b.dateNaissance)) * dir,
+    );
+    setImported(sorted);
+    setSortAsc(!sortAsc);
+    toast(`Tri par date de naissance (${sortAsc ? "croissant" : "décroissant"}).`);
+  };
+
+  const status = error
+    ? { icon: <XCircle className="h-4 w-4" />, text: error, cls: "border-destructive/40 bg-destructive/10 text-destructive" }
+    : students.length > 0
+      ? {
+          icon: <CheckCircle2 className="h-4 w-4" />,
+          text: `Fichier chargé : ${students.length} élève${students.length > 1 ? "s" : ""} trouvé${students.length > 1 ? "s" : ""}`,
+          cls: "border-primary/40 bg-primary/10 text-primary",
+        }
+      : {
+          icon: <FileText className="h-4 w-4" />,
+          text: fileName ?? "Aucun fichier chargé",
+          cls: "border-border bg-secondary text-muted-foreground",
+        };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-accent/40 bg-gradient-to-br from-accent/15 to-card p-4">
+        <p className="text-xs uppercase tracking-wider text-accent">Import rapide</p>
+        <p className="mt-1 text-sm">
+          Importez un export .txt (colonnes séparées par tabulations) pour ajouter les élèves
+          en lot.
+        </p>
+      </div>
+
+      {/* Options statiques */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground">
+            <Database className="h-5 w-5" />
           </span>
-        </span>
-      </button>
+          <div className="text-xs">
+            <p className="font-semibold">Option A — Synchronisation API</p>
+            <p className="text-muted-foreground">Temps réel (à venir).</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent text-accent-foreground">
+            <FileSpreadsheet className="h-5 w-5" />
+          </span>
+          <div className="text-xs">
+            <p className="font-semibold">Option B — Import .txt de secours</p>
+            <p className="text-muted-foreground">Fichier tabulé (TSV).</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Input fichier masqué + bouton */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt,text/plain"
+        className="sr-only"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+          e.target.value = "";
+        }}
+      />
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+        >
+          <FileUp className="h-4 w-4" />
+          📁 Sélectionner un fichier .txt
+        </button>
+        <button
+          type="button"
+          onClick={launchImport}
+          disabled={students.length === 0}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Upload className="h-4 w-4" />
+          Lancer l'import
+        </button>
+        <button
+          type="button"
+          onClick={sortByDate}
+          disabled={imported.length === 0}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-semibold transition hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <CalendarClock className="h-4 w-4" />
+          Date
+        </button>
+      </div>
+
+      {/* Statut */}
+      <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${status.cls}`}>
+        {status.icon}
+        <span className="truncate">{status.text}</span>
+      </div>
+
+      {/* Tableau résultat */}
+      {imported.length > 0 && (
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Élèves importés ({imported.length})
+            </p>
+          </div>
+          <div className="max-h-96 overflow-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-secondary text-left text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-medium">Civilité</th>
+                  <th className="px-3 py-2 font-medium">Nom</th>
+                  <th className="px-3 py-2 font-medium">Prénom</th>
+                  <th className="px-3 py-2 font-medium">Naissance</th>
+                  <th className="px-3 py-2 font-medium">Lieu</th>
+                  <th className="px-3 py-2 font-medium">NEPH</th>
+                </tr>
+              </thead>
+              <tbody>
+                {imported.map((s, i) => (
+                  <tr key={`${s.neph}-${i}`} className="border-t border-border">
+                    <td className="px-3 py-2">{s.civilite}</td>
+                    <td className="px-3 py-2 font-semibold">{s.nom}</td>
+                    <td className="px-3 py-2">{s.prenom}</td>
+                    <td className="px-3 py-2">{s.dateNaissance}</td>
+                    <td className="px-3 py-2">{s.lieuNaissance}</td>
+                    <td className="px-3 py-2 font-mono text-[11px]">{s.neph}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
