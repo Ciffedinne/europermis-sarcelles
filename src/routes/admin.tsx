@@ -401,16 +401,20 @@ function AdminStudents({
     let list = students;
     if (q) {
       list = students.filter((s) =>
-        [s.nom, s.prenom, s.neph].some((f) => normalize(f).includes(q)),
+        [s.nom, s.prenom, s.neph, s.ville ?? "", s.email ?? ""].some((f) =>
+          normalize(f).includes(q),
+        ),
       );
     }
     const sorted = [...list];
     if (sortKey === "name") {
       sorted.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
     } else if (sortKey === "city") {
-      sorted.sort((a, b) =>
-        (a.lieuNaissance || "").localeCompare(b.lieuNaissance || "", "fr"),
-      );
+      sorted.sort((a, b) => {
+        const ka = `${a.codePostal ?? ""} ${a.ville ?? a.lieuNaissance ?? ""}`;
+        const kb = `${b.codePostal ?? ""} ${b.ville ?? b.lieuNaissance ?? ""}`;
+        return ka.localeCompare(kb, "fr");
+      });
     } else {
       // recent : imports en premier, puis ordre d'arrivée inversé
       sorted.sort((a, b) => {
