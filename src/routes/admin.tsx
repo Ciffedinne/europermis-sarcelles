@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   CalendarDays,
@@ -17,6 +17,9 @@ import {
   ChevronRight as ChevRight,
   KeyRound,
   X,
+  Search,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -27,6 +30,10 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { INSTRUCTORS, PLANNING } from "@/lib/mock-data";
+
+const LS_KEY = "europermis.students.v1";
+
+type SortKey = "name" | "recent" | "city";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Espace Admin — Euro-Permis Sarcelles" }] }),
