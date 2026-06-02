@@ -63,6 +63,16 @@ export type ManagedStudent = {
   username: string;
   password: string;
   source: "seed" | "import";
+  // Champs étendus (export EXPORT.TXT)
+  adresse?: string;
+  codePostal?: string;
+  ville?: string;
+  pays?: string;
+  telephone?: string;
+  email?: string;
+  departementNaissance?: string;
+  paysNaissance?: string;
+  datePremierPermis?: string;
 };
 
 const SEED_STUDENTS: ManagedStudent[] = [
