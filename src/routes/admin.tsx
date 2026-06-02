@@ -501,7 +501,8 @@ function AdminStudents({
                 )}
               </div>
               <p className="truncate text-[11px] text-muted-foreground">
-                NEPH · {s.neph} · {s.lieuNaissance || s.pkg}
+                NEPH · {s.neph || "—"}
+                {s.ville ? ` · ${s.codePostal ?? ""} ${s.ville}`.trim() : ` · ${s.pkg}`}
               </p>
             </div>
             <span className="hidden rounded-full bg-secondary px-2 py-1 text-[11px] font-semibold text-primary sm:inline">
