@@ -63,6 +63,16 @@ export type ManagedStudent = {
   username: string;
   password: string;
   source: "seed" | "import";
+  // Champs étendus (export EXPORT.TXT)
+  adresse?: string;
+  codePostal?: string;
+  ville?: string;
+  pays?: string;
+  telephone?: string;
+  email?: string;
+  departementNaissance?: string;
+  paysNaissance?: string;
+  datePremierPermis?: string;
 };
 
 const SEED_STUDENTS: ManagedStudent[] = [
@@ -391,16 +401,20 @@ function AdminStudents({
     let list = students;
     if (q) {
       list = students.filter((s) =>
-        [s.nom, s.prenom, s.neph].some((f) => normalize(f).includes(q)),
+        [s.nom, s.prenom, s.neph, s.ville ?? "", s.email ?? ""].some((f) =>
+          normalize(f).includes(q),
+        ),
       );
     }
     const sorted = [...list];
     if (sortKey === "name") {
       sorted.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
     } else if (sortKey === "city") {
-      sorted.sort((a, b) =>
-        (a.lieuNaissance || "").localeCompare(b.lieuNaissance || "", "fr"),
-      );
+      sorted.sort((a, b) => {
+        const ka = `${a.codePostal ?? ""} ${a.ville ?? a.lieuNaissance ?? ""}`;
+        const kb = `${b.codePostal ?? ""} ${b.ville ?? b.lieuNaissance ?? ""}`;
+        return ka.localeCompare(kb, "fr");
+      });
     } else {
       // recent : imports en premier, puis ordre d'arrivée inversé
       sorted.sort((a, b) => {
@@ -450,7 +464,7 @@ function AdminStudents({
         >
           <option value="recent">Trier par : Récents</option>
           <option value="name">Trier par : Nom (A–Z)</option>
-          <option value="city">Trier par : Lieu / Ville</option>
+          <option value="city">Trier par : Code postal / Ville</option>
         </select>
       </div>
 
@@ -487,7 +501,8 @@ function AdminStudents({
                 )}
               </div>
               <p className="truncate text-[11px] text-muted-foreground">
-                NEPH · {s.neph} · {s.lieuNaissance || s.pkg}
+                NEPH · {s.neph || "—"}
+                {s.ville ? ` · ${s.codePostal ?? ""} ${s.ville}`.trim() : ` · ${s.pkg}`}
               </p>
             </div>
             <span className="hidden rounded-full bg-secondary px-2 py-1 text-[11px] font-semibold text-primary sm:inline">
@@ -536,15 +551,50 @@ function StudentDetailDialog({
                 </span>
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
               <InfoRow label="Civilité" value={student.civilite} />
               <InfoRow label="Nom" value={student.nom} />
               <InfoRow label="Prénom" value={student.prenom} />
               <InfoRow label="Date de naissance" value={student.dateNaissance} />
               <InfoRow label="Lieu de naissance" value={student.lieuNaissance} />
+              {student.departementNaissance && (
+                <InfoRow label="Dépt. naissance" value={student.departementNaissance} />
+              )}
+              {student.paysNaissance && (
+                <InfoRow label="Pays de naissance" value={student.paysNaissance} />
+              )}
               <InfoRow label="NEPH" value={student.neph} mono />
+              {student.datePremierPermis && (
+                <InfoRow label="1er permis" value={student.datePremierPermis} />
+              )}
               <InfoRow label="Forfait" value={student.pkg} />
               <InfoRow label="Heures" value={student.hours} />
+
+              {(student.adresse || student.ville || student.codePostal || student.pays) && (
+                <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Adresse
+                  </p>
+                  {student.adresse && <InfoRow label="Rue" value={student.adresse} />}
+                  {student.codePostal && (
+                    <InfoRow label="Code postal" value={student.codePostal} />
+                  )}
+                  {student.ville && <InfoRow label="Ville" value={student.ville} />}
+                  {student.pays && <InfoRow label="Pays" value={student.pays} />}
+                </div>
+              )}
+
+              {(student.telephone || student.email) && (
+                <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Contact
+                  </p>
+                  {student.telephone && (
+                    <InfoRow label="Téléphone" value={student.telephone} mono />
+                  )}
+                  {student.email && <InfoRow label="Email" value={student.email} />}
+                </div>
+              )}
 
               <div className="rounded-xl border border-primary/40 bg-primary/10 p-3">
                 <div className="mb-2 flex items-center gap-2 text-primary">
@@ -616,6 +666,15 @@ type ImportedStudent = {
   dateNaissance: string;
   lieuNaissance: string;
   neph: string;
+  adresse: string;
+  codePostal: string;
+  ville: string;
+  pays: string;
+  telephone: string;
+  email: string;
+  departementNaissance: string;
+  paysNaissance: string;
+  datePremierPermis: string;
 };
 
 function parseDateFR(d: string): number {
@@ -625,12 +684,16 @@ function parseDateFR(d: string): number {
   return new Date(`${yyyy}-${mm}-${dd}`).getTime();
 }
 
-// Extrait "NOM Prenom" depuis un bloc unique : les MOTS EN MAJUSCULES
-// constituent le nom de famille, le reste devient le prénom.
+// Extrait NOM + PRENOM depuis un bloc unique (Index 1 d'EXPORT.TXT).
+// Convention : les mots écrits ENTIÈREMENT en majuscules constituent le NOM
+// de famille ; les autres mots (capitalisés ou minuscules) deviennent le
+// PRENOM. Fallback : premier mot = NOM, reste = PRENOM.
 function splitNomPrenom(bloc: string): { nom: string; prenom: string } {
   const cleaned = bloc.replace(/\s+/g, " ").trim();
   if (!cleaned) return { nom: "", prenom: "" };
   const parts = cleaned.split(" ");
+  if (parts.length === 1) return { nom: parts[0], prenom: "" };
+
   const nomParts: string[] = [];
   const prenomParts: string[] = [];
   for (const w of parts) {
@@ -641,67 +704,64 @@ function splitNomPrenom(bloc: string): { nom: string; prenom: string } {
       prenomParts.push(w);
     }
   }
-  if (nomParts.length === 0 && parts.length >= 2) {
-    // fallback : 1er mot = nom, reste = prénom
-    return { nom: parts[0], prenom: parts.slice(1).join(" ") };
-  }
-  if (prenomParts.length === 0 && parts.length >= 2) {
+  if (nomParts.length === 0 || prenomParts.length === 0) {
     return { nom: parts[0], prenom: parts.slice(1).join(" ") };
   }
   return { nom: nomParts.join(" "), prenom: prenomParts.join(" ") };
 }
 
+// Parse EXPORT.TXT (séparateur tabulation strict, encodage UTF-8/Latin-1).
+// Indexation des colonnes :
+//  0 CIVILITE | 1 NOM_PRENOM_BLOC | 2 NOM DE NAISSANCE | 3 ADRESSE
+//  4 CODE POSTAL | 5 VILLE | 6 PAYS | 7-10 TELEPHONES | 11 EMAIL
+//  12 DATE NAISSANCE | 13 VILLE NAISSANCE | 14 DEPT NAISSANCE
+//  15 PAYS NAISSANCE | 16 NEPH | 17 DATE PREMIER PERMIS
 function parseTxtTSV(text: string): ImportedStudent[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  // Nettoyage strict des retours chariot Windows puis découpage par \n.
+  const cleaned = text.replace(/\r/g, "");
+  const lines = cleaned.split("\n").filter((l) => l.trim().length > 0);
   if (lines.length === 0) throw new Error("Fichier vide");
-  // Détecte une éventuelle ligne d'en-tête.
+
+  // Détection d'un éventuel en-tête
   const first = lines[0].toLowerCase();
   const hasHeader =
-    first.includes("nom") || first.includes("civilit") || first.includes("neph");
+    first.includes("civilit") ||
+    first.includes("nom") ||
+    first.includes("neph") ||
+    first.includes("email");
   const dataLines = hasHeader ? lines.slice(1) : lines;
-  if (dataLines.length === 0) throw new Error("Aucune donnée détectée");
+  if (dataLines.length === 0) throw new Error("Aucune donnée exploitable");
+
+  const at = (cols: string[], i: number) => (cols[i] ?? "").trim();
 
   const out: ImportedStudent[] = [];
   for (const line of dataLines) {
-    const cols = line.split("\t").map((c) => c.trim());
-    if (cols.length < 4) continue; // ligne ignorée
-    let civilite = cols[0];
-    let nom = "";
-    let prenom = "";
-    let dateNaissance = "";
-    let lieuNaissance = "";
-    let neph = "";
+    const cols = line.split("\t");
+    if (cols.length < 2) continue;
 
-    if (cols.length >= 6) {
-      // Format à 6 colonnes : civ | NOM | Prénom | date | lieu | NEPH
-      // OU civ | "NOM Prenom" | <vide?> | date | lieu | NEPH
-      if (cols[2] && cols[2].length > 0 && !/^\d{2}\//.test(cols[2])) {
-        nom = cols[1];
-        prenom = cols[2];
-        dateNaissance = cols[3];
-        lieuNaissance = cols[4];
-        neph = cols[5];
-      } else {
-        const sp = splitNomPrenom(cols[1]);
-        nom = sp.nom;
-        prenom = sp.prenom;
-        dateNaissance = cols[3] || cols[2];
-        lieuNaissance = cols[4];
-        neph = cols[5];
-      }
-    } else {
-      // Format compact : civ | "NOM Prenom" | date | lieu | NEPH
-      const sp = splitNomPrenom(cols[1] || "");
-      nom = sp.nom;
-      prenom = sp.prenom;
-      dateNaissance = cols[2] || "";
-      lieuNaissance = cols[3] || "";
-      neph = cols[4] || "";
-    }
-
-    if (!civilite) civilite = "—";
+    const civilite = at(cols, 0) || "—";
+    const bloc = at(cols, 1);
+    if (!bloc) continue;
+    const { nom, prenom } = splitNomPrenom(bloc);
     if (!nom && !prenom) continue;
-    out.push({ civilite, nom, prenom, dateNaissance, lieuNaissance, neph });
+
+    out.push({
+      civilite,
+      nom,
+      prenom,
+      adresse: at(cols, 3),
+      codePostal: at(cols, 4),
+      ville: at(cols, 5),
+      pays: at(cols, 6),
+      telephone: at(cols, 7),
+      email: at(cols, 11),
+      dateNaissance: at(cols, 12),
+      lieuNaissance: at(cols, 13),
+      departementNaissance: at(cols, 14),
+      paysNaissance: at(cols, 15),
+      neph: at(cols, 16),
+      datePremierPermis: at(cols, 17),
+    });
   }
   if (out.length === 0) throw new Error("Aucune ligne exploitable");
   return out;
