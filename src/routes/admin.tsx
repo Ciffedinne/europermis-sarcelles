@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   CalendarDays,
@@ -17,6 +17,9 @@ import {
   ChevronRight as ChevRight,
   KeyRound,
   X,
+  Search,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 import {
   Dialog,
@@ -27,6 +30,10 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { INSTRUCTORS, PLANNING } from "@/lib/mock-data";
+
+const LS_KEY = "europermis.students.v1";
+
+type SortKey = "name" | "recent" | "city";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Espace Admin — Euro-Permis Sarcelles" }] }),
@@ -88,6 +95,31 @@ function AdminApp() {
   const [tab, setTab] = useState<Tab>("planning");
   const [students, setStudents] = useState<ManagedStudent[]>(SEED_STUDENTS);
   const [openStudent, setOpenStudent] = useState<ManagedStudent | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Hydration depuis localStorage au montage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as ManagedStudent[];
+        if (Array.isArray(parsed) && parsed.length > 0) setStudents(parsed);
+      }
+    } catch {
+      /* ignore */
+    }
+    setHydrated(true);
+  }, []);
+
+  // Persistance à chaque changement (après hydratation)
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(students));
+    } catch {
+      /* ignore */
+    }
+  }, [students, hydrated]);
 
   const titles: Record<Tab, string> = {
     planning: "Planning général",
@@ -96,9 +128,9 @@ function AdminApp() {
   };
 
   const addImported = (rows: Omit<ManagedStudent, "id" | "username" | "password" | "pkg" | "hours" | "source">[]) => {
+    let added = 0;
     setStudents((prev) => {
       const byNeph = new Map(prev.map((s) => [s.neph, s]));
-      let added = 0;
       for (const r of rows) {
         if (byNeph.has(r.neph)) continue;
         const created: ManagedStudent = {
@@ -113,12 +145,31 @@ function AdminApp() {
         byNeph.set(created.neph, created);
         added++;
       }
-      toast.success(
-        `${added} compte${added > 1 ? "s" : ""} élève créé${added > 1 ? "s" : ""} et ajouté${added > 1 ? "s" : ""} à la liste.`,
-      );
       return Array.from(byNeph.values());
     });
+    toast.success(
+      added === 0
+        ? "Aucun nouvel élève (tous déjà présents)."
+        : `${added} compte${added > 1 ? "s" : ""} élève créé${added > 1 ? "s" : ""} et ajouté${added > 1 ? "s" : ""}.`,
+    );
     setTab("students");
+  };
+
+  const deleteStudent = (id: string) => {
+    setStudents((prev) => prev.filter((s) => s.id !== id));
+    setOpenStudent(null);
+    toast.success("Élève supprimé.");
+  };
+
+  const resetAll = () => {
+    if (!window.confirm("Voulez-vous vraiment vider la liste des élèves ?")) return;
+    setStudents([]);
+    try {
+      localStorage.removeItem(LS_KEY);
+    } catch {
+      /* ignore */
+    }
+    toast.success("Liste des élèves vidée.");
   };
 
   return (
@@ -126,7 +177,12 @@ function AdminApp() {
       <AppShell title={titles[tab]} subtitle="Secrétariat · Admin">
         {tab === "planning" && <AdminPlanning />}
         {tab === "students" && (
-          <AdminStudents students={students} onOpen={setOpenStudent} />
+          <AdminStudents
+            students={students}
+            onOpen={setOpenStudent}
+            onDelete={deleteStudent}
+            onResetAll={resetAll}
+          />
         )}
         {tab === "import" && <AdminImport onValidate={addImported} />}
       </AppShell>
@@ -134,6 +190,7 @@ function AdminApp() {
       <StudentDetailDialog
         student={openStudent}
         onClose={() => setOpenStudent(null)}
+        onDelete={deleteStudent}
       />
     </>
   );
@@ -315,46 +372,141 @@ function InstructorColumn({ name, date }: { name: string; date: Date }) {
 function AdminStudents({
   students,
   onOpen,
+  onDelete,
+  onResetAll,
 }: {
   students: ManagedStudent[];
   onOpen: (s: ManagedStudent) => void;
+  onDelete: (id: string) => void;
+  onResetAll: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
+
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const filtered = useMemo(() => {
+    const q = normalize(query.trim());
+    let list = students;
+    if (q) {
+      list = students.filter((s) =>
+        [s.nom, s.prenom, s.neph].some((f) => normalize(f).includes(q)),
+      );
+    }
+    const sorted = [...list];
+    if (sortKey === "name") {
+      sorted.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+    } else if (sortKey === "city") {
+      sorted.sort((a, b) =>
+        (a.lieuNaissance || "").localeCompare(b.lieuNaissance || "", "fr"),
+      );
+    } else {
+      // recent : imports en premier, puis ordre d'arrivée inversé
+      sorted.sort((a, b) => {
+        if (a.source !== b.source) return a.source === "import" ? -1 : 1;
+        return 0;
+      });
+      sorted.reverse();
+    }
+    return sorted;
+  }, [students, query, sortKey]);
+
   return (
-    <div className="space-y-2">
-      <p className="px-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-        {students.length} élève{students.length > 1 ? "s" : ""} enregistré
-        {students.length > 1 ? "s" : ""}
-      </p>
-      {students.map((s) => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="px-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+          {filtered.length} / {students.length} élève{students.length > 1 ? "s" : ""}
+        </p>
         <button
-          key={s.id}
           type="button"
-          onClick={() => onOpen(s)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition hover:border-primary/60 hover:bg-secondary/50"
+          onClick={onResetAll}
+          disabled={students.length === 0}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 px-2.5 py-1.5 text-[11px] font-semibold text-destructive transition hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Vider la liste des élèves"
+          title="Vider la liste des élèves"
         >
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-            {(s.prenom[0] ?? "") + (s.nom[0] ?? "")}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-semibold">
-                {s.prenom} {s.nom}
-              </p>
-              {s.source === "import" && (
-                <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-accent">
-                  Nouveau
-                </span>
-              )}
-            </div>
-            <p className="truncate text-[11px] text-muted-foreground">
-              NEPH · {s.neph} · {s.pkg}
-            </p>
-          </div>
-          <span className="hidden rounded-full bg-secondary px-2 py-1 text-[11px] font-semibold text-primary sm:inline">
-            {s.hours}
-          </span>
-          <ChevRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <RotateCcw className="h-3.5 w-3.5" />
+          Réinitialiser
         </button>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher : nom, prénom ou NEPH…"
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-3 text-sm outline-none ring-primary/40 transition focus:border-primary focus:ring-2"
+          />
+        </div>
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+          aria-label="Trier par"
+        >
+          <option value="recent">Trier par : Récents</option>
+          <option value="name">Trier par : Nom (A–Z)</option>
+          <option value="city">Trier par : Lieu / Ville</option>
+        </select>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          {students.length === 0
+            ? "Aucun élève. Importez un fichier .txt pour démarrer."
+            : "Aucun élève ne correspond à la recherche."}
+        </div>
+      )}
+
+      {filtered.map((s) => (
+        <div
+          key={s.id}
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition hover:border-primary/60 hover:bg-secondary/50"
+        >
+          <button
+            type="button"
+            onClick={() => onOpen(s)}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          >
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+              {(s.prenom[0] ?? "") + (s.nom[0] ?? "")}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-semibold">
+                  {s.prenom} {s.nom}
+                </p>
+                {s.source === "import" && (
+                  <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-accent">
+                    Nouveau
+                  </span>
+                )}
+              </div>
+              <p className="truncate text-[11px] text-muted-foreground">
+                NEPH · {s.neph} · {s.lieuNaissance || s.pkg}
+              </p>
+            </div>
+            <span className="hidden rounded-full bg-secondary px-2 py-1 text-[11px] font-semibold text-primary sm:inline">
+              {s.hours}
+            </span>
+            <ChevRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Supprimer ${s.prenom} ${s.nom} ?`)) onDelete(s.id);
+            }}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive transition hover:bg-destructive/20"
+            aria-label={`Supprimer ${s.prenom} ${s.nom}`}
+            title="Supprimer cet élève"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       ))}
     </div>
   );
@@ -363,9 +515,11 @@ function AdminStudents({
 function StudentDetailDialog({
   student,
   onClose,
+  onDelete,
 }: {
   student: ManagedStudent | null;
   onClose: () => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <Dialog open={!!student} onOpenChange={(o) => !o && onClose()}>
@@ -403,13 +557,29 @@ function StudentDetailDialog({
                 <InfoRow label="Mot de passe" value={student.password} mono />
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold"
-              >
-                <X className="h-4 w-4" /> Fermer
-              </button>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Supprimer ${student.prenom} ${student.nom} ?`,
+                      )
+                    )
+                      onDelete(student.id);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
+                >
+                  <Trash2 className="h-4 w-4" /> Supprimer
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold"
+                >
+                  <X className="h-4 w-4" /> Fermer
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -455,22 +625,86 @@ function parseDateFR(d: string): number {
   return new Date(`${yyyy}-${mm}-${dd}`).getTime();
 }
 
+// Extrait "NOM Prenom" depuis un bloc unique : les MOTS EN MAJUSCULES
+// constituent le nom de famille, le reste devient le prénom.
+function splitNomPrenom(bloc: string): { nom: string; prenom: string } {
+  const cleaned = bloc.replace(/\s+/g, " ").trim();
+  if (!cleaned) return { nom: "", prenom: "" };
+  const parts = cleaned.split(" ");
+  const nomParts: string[] = [];
+  const prenomParts: string[] = [];
+  for (const w of parts) {
+    const letters = w.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ'-]/g, "");
+    if (letters.length >= 2 && letters === letters.toUpperCase()) {
+      nomParts.push(w);
+    } else {
+      prenomParts.push(w);
+    }
+  }
+  if (nomParts.length === 0 && parts.length >= 2) {
+    // fallback : 1er mot = nom, reste = prénom
+    return { nom: parts[0], prenom: parts.slice(1).join(" ") };
+  }
+  if (prenomParts.length === 0 && parts.length >= 2) {
+    return { nom: parts[0], prenom: parts.slice(1).join(" ") };
+  }
+  return { nom: nomParts.join(" "), prenom: prenomParts.join(" ") };
+}
+
 function parseTxtTSV(text: string): ImportedStudent[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) throw new Error("Fichier vide");
-  return lines.slice(1).map((line) => {
+  if (lines.length === 0) throw new Error("Fichier vide");
+  // Détecte une éventuelle ligne d'en-tête.
+  const first = lines[0].toLowerCase();
+  const hasHeader =
+    first.includes("nom") || first.includes("civilit") || first.includes("neph");
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  if (dataLines.length === 0) throw new Error("Aucune donnée détectée");
+
+  const out: ImportedStudent[] = [];
+  for (const line of dataLines) {
     const cols = line.split("\t").map((c) => c.trim());
-    if (cols.length < 6)
-      throw new Error("Format invalide : 6 colonnes séparées par tabulations attendues");
-    return {
-      civilite: cols[0],
-      nom: cols[1],
-      prenom: cols[2],
-      dateNaissance: cols[3],
-      lieuNaissance: cols[4],
-      neph: cols[5],
-    };
-  });
+    if (cols.length < 4) continue; // ligne ignorée
+    let civilite = cols[0];
+    let nom = "";
+    let prenom = "";
+    let dateNaissance = "";
+    let lieuNaissance = "";
+    let neph = "";
+
+    if (cols.length >= 6) {
+      // Format à 6 colonnes : civ | NOM | Prénom | date | lieu | NEPH
+      // OU civ | "NOM Prenom" | <vide?> | date | lieu | NEPH
+      if (cols[2] && cols[2].length > 0 && !/^\d{2}\//.test(cols[2])) {
+        nom = cols[1];
+        prenom = cols[2];
+        dateNaissance = cols[3];
+        lieuNaissance = cols[4];
+        neph = cols[5];
+      } else {
+        const sp = splitNomPrenom(cols[1]);
+        nom = sp.nom;
+        prenom = sp.prenom;
+        dateNaissance = cols[3] || cols[2];
+        lieuNaissance = cols[4];
+        neph = cols[5];
+      }
+    } else {
+      // Format compact : civ | "NOM Prenom" | date | lieu | NEPH
+      const sp = splitNomPrenom(cols[1] || "");
+      nom = sp.nom;
+      prenom = sp.prenom;
+      dateNaissance = cols[2] || "";
+      lieuNaissance = cols[3] || "";
+      neph = cols[4] || "";
+    }
+
+    if (!civilite) civilite = "—";
+    if (!nom && !prenom) continue;
+    out.push({ civilite, nom, prenom, dateNaissance, lieuNaissance, neph });
+  }
+  if (out.length === 0) throw new Error("Aucune ligne exploitable");
+  return out;
 }
 
 function AdminImport({
