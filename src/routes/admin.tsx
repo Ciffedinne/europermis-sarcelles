@@ -625,22 +625,86 @@ function parseDateFR(d: string): number {
   return new Date(`${yyyy}-${mm}-${dd}`).getTime();
 }
 
+// Extrait "NOM Prenom" depuis un bloc unique : les MOTS EN MAJUSCULES
+// constituent le nom de famille, le reste devient le prénom.
+function splitNomPrenom(bloc: string): { nom: string; prenom: string } {
+  const cleaned = bloc.replace(/\s+/g, " ").trim();
+  if (!cleaned) return { nom: "", prenom: "" };
+  const parts = cleaned.split(" ");
+  const nomParts: string[] = [];
+  const prenomParts: string[] = [];
+  for (const w of parts) {
+    const letters = w.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ'-]/g, "");
+    if (letters.length >= 2 && letters === letters.toUpperCase()) {
+      nomParts.push(w);
+    } else {
+      prenomParts.push(w);
+    }
+  }
+  if (nomParts.length === 0 && parts.length >= 2) {
+    // fallback : 1er mot = nom, reste = prénom
+    return { nom: parts[0], prenom: parts.slice(1).join(" ") };
+  }
+  if (prenomParts.length === 0 && parts.length >= 2) {
+    return { nom: parts[0], prenom: parts.slice(1).join(" ") };
+  }
+  return { nom: nomParts.join(" "), prenom: prenomParts.join(" ") };
+}
+
 function parseTxtTSV(text: string): ImportedStudent[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) throw new Error("Fichier vide");
-  return lines.slice(1).map((line) => {
+  if (lines.length === 0) throw new Error("Fichier vide");
+  // Détecte une éventuelle ligne d'en-tête.
+  const first = lines[0].toLowerCase();
+  const hasHeader =
+    first.includes("nom") || first.includes("civilit") || first.includes("neph");
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+  if (dataLines.length === 0) throw new Error("Aucune donnée détectée");
+
+  const out: ImportedStudent[] = [];
+  for (const line of dataLines) {
     const cols = line.split("\t").map((c) => c.trim());
-    if (cols.length < 6)
-      throw new Error("Format invalide : 6 colonnes séparées par tabulations attendues");
-    return {
-      civilite: cols[0],
-      nom: cols[1],
-      prenom: cols[2],
-      dateNaissance: cols[3],
-      lieuNaissance: cols[4],
-      neph: cols[5],
-    };
-  });
+    if (cols.length < 4) continue; // ligne ignorée
+    let civilite = cols[0];
+    let nom = "";
+    let prenom = "";
+    let dateNaissance = "";
+    let lieuNaissance = "";
+    let neph = "";
+
+    if (cols.length >= 6) {
+      // Format à 6 colonnes : civ | NOM | Prénom | date | lieu | NEPH
+      // OU civ | "NOM Prenom" | <vide?> | date | lieu | NEPH
+      if (cols[2] && cols[2].length > 0 && !/^\d{2}\//.test(cols[2])) {
+        nom = cols[1];
+        prenom = cols[2];
+        dateNaissance = cols[3];
+        lieuNaissance = cols[4];
+        neph = cols[5];
+      } else {
+        const sp = splitNomPrenom(cols[1]);
+        nom = sp.nom;
+        prenom = sp.prenom;
+        dateNaissance = cols[3] || cols[2];
+        lieuNaissance = cols[4];
+        neph = cols[5];
+      }
+    } else {
+      // Format compact : civ | "NOM Prenom" | date | lieu | NEPH
+      const sp = splitNomPrenom(cols[1] || "");
+      nom = sp.nom;
+      prenom = sp.prenom;
+      dateNaissance = cols[2] || "";
+      lieuNaissance = cols[3] || "";
+      neph = cols[4] || "";
+    }
+
+    if (!civilite) civilite = "—";
+    if (!nom && !prenom) continue;
+    out.push({ civilite, nom, prenom, dateNaissance, lieuNaissance, neph });
+  }
+  if (out.length === 0) throw new Error("Aucune ligne exploitable");
+  return out;
 }
 
 function AdminImport({
