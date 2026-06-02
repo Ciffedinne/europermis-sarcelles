@@ -95,6 +95,31 @@ function AdminApp() {
   const [tab, setTab] = useState<Tab>("planning");
   const [students, setStudents] = useState<ManagedStudent[]>(SEED_STUDENTS);
   const [openStudent, setOpenStudent] = useState<ManagedStudent | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Hydration depuis localStorage au montage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as ManagedStudent[];
+        if (Array.isArray(parsed) && parsed.length > 0) setStudents(parsed);
+      }
+    } catch {
+      /* ignore */
+    }
+    setHydrated(true);
+  }, []);
+
+  // Persistance à chaque changement (après hydratation)
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(students));
+    } catch {
+      /* ignore */
+    }
+  }, [students, hydrated]);
 
   const titles: Record<Tab, string> = {
     planning: "Planning général",
@@ -103,9 +128,9 @@ function AdminApp() {
   };
 
   const addImported = (rows: Omit<ManagedStudent, "id" | "username" | "password" | "pkg" | "hours" | "source">[]) => {
+    let added = 0;
     setStudents((prev) => {
       const byNeph = new Map(prev.map((s) => [s.neph, s]));
-      let added = 0;
       for (const r of rows) {
         if (byNeph.has(r.neph)) continue;
         const created: ManagedStudent = {
@@ -120,12 +145,31 @@ function AdminApp() {
         byNeph.set(created.neph, created);
         added++;
       }
-      toast.success(
-        `${added} compte${added > 1 ? "s" : ""} élève créé${added > 1 ? "s" : ""} et ajouté${added > 1 ? "s" : ""} à la liste.`,
-      );
       return Array.from(byNeph.values());
     });
+    toast.success(
+      added === 0
+        ? "Aucun nouvel élève (tous déjà présents)."
+        : `${added} compte${added > 1 ? "s" : ""} élève créé${added > 1 ? "s" : ""} et ajouté${added > 1 ? "s" : ""}.`,
+    );
     setTab("students");
+  };
+
+  const deleteStudent = (id: string) => {
+    setStudents((prev) => prev.filter((s) => s.id !== id));
+    setOpenStudent(null);
+    toast.success("Élève supprimé.");
+  };
+
+  const resetAll = () => {
+    if (!window.confirm("Voulez-vous vraiment vider la liste des élèves ?")) return;
+    setStudents([]);
+    try {
+      localStorage.removeItem(LS_KEY);
+    } catch {
+      /* ignore */
+    }
+    toast.success("Liste des élèves vidée.");
   };
 
   return (
@@ -133,7 +177,12 @@ function AdminApp() {
       <AppShell title={titles[tab]} subtitle="Secrétariat · Admin">
         {tab === "planning" && <AdminPlanning />}
         {tab === "students" && (
-          <AdminStudents students={students} onOpen={setOpenStudent} />
+          <AdminStudents
+            students={students}
+            onOpen={setOpenStudent}
+            onDelete={deleteStudent}
+            onResetAll={resetAll}
+          />
         )}
         {tab === "import" && <AdminImport onValidate={addImported} />}
       </AppShell>
@@ -141,6 +190,7 @@ function AdminApp() {
       <StudentDetailDialog
         student={openStudent}
         onClose={() => setOpenStudent(null)}
+        onDelete={deleteStudent}
       />
     </>
   );
