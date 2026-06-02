@@ -515,9 +515,11 @@ function AdminStudents({
 function StudentDetailDialog({
   student,
   onClose,
+  onDelete,
 }: {
   student: ManagedStudent | null;
   onClose: () => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <Dialog open={!!student} onOpenChange={(o) => !o && onClose()}>
