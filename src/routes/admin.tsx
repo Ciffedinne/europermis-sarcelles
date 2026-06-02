@@ -372,46 +372,141 @@ function InstructorColumn({ name, date }: { name: string; date: Date }) {
 function AdminStudents({
   students,
   onOpen,
+  onDelete,
+  onResetAll,
 }: {
   students: ManagedStudent[];
   onOpen: (s: ManagedStudent) => void;
+  onDelete: (id: string) => void;
+  onResetAll: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
+
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const filtered = useMemo(() => {
+    const q = normalize(query.trim());
+    let list = students;
+    if (q) {
+      list = students.filter((s) =>
+        [s.nom, s.prenom, s.neph].some((f) => normalize(f).includes(q)),
+      );
+    }
+    const sorted = [...list];
+    if (sortKey === "name") {
+      sorted.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+    } else if (sortKey === "city") {
+      sorted.sort((a, b) =>
+        (a.lieuNaissance || "").localeCompare(b.lieuNaissance || "", "fr"),
+      );
+    } else {
+      // recent : imports en premier, puis ordre d'arrivée inversé
+      sorted.sort((a, b) => {
+        if (a.source !== b.source) return a.source === "import" ? -1 : 1;
+        return 0;
+      });
+      sorted.reverse();
+    }
+    return sorted;
+  }, [students, query, sortKey]);
+
   return (
-    <div className="space-y-2">
-      <p className="px-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-        {students.length} élève{students.length > 1 ? "s" : ""} enregistré
-        {students.length > 1 ? "s" : ""}
-      </p>
-      {students.map((s) => (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="px-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+          {filtered.length} / {students.length} élève{students.length > 1 ? "s" : ""}
+        </p>
         <button
-          key={s.id}
           type="button"
-          onClick={() => onOpen(s)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition hover:border-primary/60 hover:bg-secondary/50"
+          onClick={onResetAll}
+          disabled={students.length === 0}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/40 bg-destructive/10 px-2.5 py-1.5 text-[11px] font-semibold text-destructive transition hover:bg-destructive/20 disabled:cursor-not-allowed disabled:opacity-40"
+          aria-label="Vider la liste des élèves"
+          title="Vider la liste des élèves"
         >
-          <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">
-            {(s.prenom[0] ?? "") + (s.nom[0] ?? "")}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-semibold">
-                {s.prenom} {s.nom}
-              </p>
-              {s.source === "import" && (
-                <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-accent">
-                  Nouveau
-                </span>
-              )}
-            </div>
-            <p className="truncate text-[11px] text-muted-foreground">
-              NEPH · {s.neph} · {s.pkg}
-            </p>
-          </div>
-          <span className="hidden rounded-full bg-secondary px-2 py-1 text-[11px] font-semibold text-primary sm:inline">
-            {s.hours}
-          </span>
-          <ChevRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <RotateCcw className="h-3.5 w-3.5" />
+          Réinitialiser
         </button>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher : nom, prénom ou NEPH…"
+            className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-3 text-sm outline-none ring-primary/40 transition focus:border-primary focus:ring-2"
+          />
+        </div>
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value as SortKey)}
+          className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
+          aria-label="Trier par"
+        >
+          <option value="recent">Trier par : Récents</option>
+          <option value="name">Trier par : Nom (A–Z)</option>
+          <option value="city">Trier par : Lieu / Ville</option>
+        </select>
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          {students.length === 0
+            ? "Aucun élève. Importez un fichier .txt pour démarrer."
+            : "Aucun élève ne correspond à la recherche."}
+        </div>
+      )}
+
+      {filtered.map((s) => (
+        <div
+          key={s.id}
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 transition hover:border-primary/60 hover:bg-secondary/50"
+        >
+          <button
+            type="button"
+            onClick={() => onOpen(s)}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          >
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+              {(s.prenom[0] ?? "") + (s.nom[0] ?? "")}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-semibold">
+                  {s.prenom} {s.nom}
+                </p>
+                {s.source === "import" && (
+                  <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-accent">
+                    Nouveau
+                  </span>
+                )}
+              </div>
+              <p className="truncate text-[11px] text-muted-foreground">
+                NEPH · {s.neph} · {s.lieuNaissance || s.pkg}
+              </p>
+            </div>
+            <span className="hidden rounded-full bg-secondary px-2 py-1 text-[11px] font-semibold text-primary sm:inline">
+              {s.hours}
+            </span>
+            <ChevRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Supprimer ${s.prenom} ${s.nom} ?`)) onDelete(s.id);
+            }}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-destructive/30 bg-destructive/10 text-destructive transition hover:bg-destructive/20"
+            aria-label={`Supprimer ${s.prenom} ${s.nom}`}
+            title="Supprimer cet élève"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       ))}
     </div>
   );
