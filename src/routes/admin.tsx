@@ -557,13 +557,29 @@ function StudentDetailDialog({
                 <InfoRow label="Mot de passe" value={student.password} mono />
               </div>
 
-              <button
-                type="button"
-                onClick={onClose}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold"
-              >
-                <X className="h-4 w-4" /> Fermer
-              </button>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Supprimer ${student.prenom} ${student.nom} ?`,
+                      )
+                    )
+                      onDelete(student.id);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2.5 text-sm font-semibold text-destructive transition hover:bg-destructive/20"
+                >
+                  <Trash2 className="h-4 w-4" /> Supprimer
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold"
+                >
+                  <X className="h-4 w-4" /> Fermer
+                </button>
+              </div>
             </div>
           </>
         )}
