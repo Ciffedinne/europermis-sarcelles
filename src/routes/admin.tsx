@@ -464,7 +464,7 @@ function AdminStudents({
         >
           <option value="recent">Trier par : Récents</option>
           <option value="name">Trier par : Nom (A–Z)</option>
-          <option value="city">Trier par : Lieu / Ville</option>
+          <option value="city">Trier par : Code postal / Ville</option>
         </select>
       </div>
 
