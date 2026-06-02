@@ -546,15 +546,50 @@ function StudentDetailDialog({
                 </span>
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
               <InfoRow label="Civilité" value={student.civilite} />
               <InfoRow label="Nom" value={student.nom} />
               <InfoRow label="Prénom" value={student.prenom} />
               <InfoRow label="Date de naissance" value={student.dateNaissance} />
               <InfoRow label="Lieu de naissance" value={student.lieuNaissance} />
+              {student.departementNaissance && (
+                <InfoRow label="Dépt. naissance" value={student.departementNaissance} />
+              )}
+              {student.paysNaissance && (
+                <InfoRow label="Pays de naissance" value={student.paysNaissance} />
+              )}
               <InfoRow label="NEPH" value={student.neph} mono />
+              {student.datePremierPermis && (
+                <InfoRow label="1er permis" value={student.datePremierPermis} />
+              )}
               <InfoRow label="Forfait" value={student.pkg} />
               <InfoRow label="Heures" value={student.hours} />
+
+              {(student.adresse || student.ville || student.codePostal || student.pays) && (
+                <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Adresse
+                  </p>
+                  {student.adresse && <InfoRow label="Rue" value={student.adresse} />}
+                  {student.codePostal && (
+                    <InfoRow label="Code postal" value={student.codePostal} />
+                  )}
+                  {student.ville && <InfoRow label="Ville" value={student.ville} />}
+                  {student.pays && <InfoRow label="Pays" value={student.pays} />}
+                </div>
+              )}
+
+              {(student.telephone || student.email) && (
+                <div className="rounded-xl border border-border bg-secondary/40 p-3">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Contact
+                  </p>
+                  {student.telephone && (
+                    <InfoRow label="Téléphone" value={student.telephone} mono />
+                  )}
+                  {student.email && <InfoRow label="Email" value={student.email} />}
+                </div>
+              )}
 
               <div className="rounded-xl border border-primary/40 bg-primary/10 p-3">
                 <div className="mb-2 flex items-center gap-2 text-primary">
