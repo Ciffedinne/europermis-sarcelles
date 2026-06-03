@@ -52,7 +52,7 @@ function StudentApp() {
       <AppShell title={titles[tab]} subtitle="Espace Élève">
         {tab === "home" && <StudentHome student={activeStudent} />}
         {tab === "planning" && <StudentPlanning student={activeStudent} />}
-        {tab === "payment" && <StudentPayment />}
+        {tab === "payment" && <StudentPayment student={activeStudent} />}
         {tab === "profile" && <StudentProfile student={activeStudent} />}
       </AppShell>
       <BottomNav items={TABS} active={tab} onChange={setTab} />
@@ -90,21 +90,35 @@ function ProfileLine({ label, value }: { label: string; value: string }) {
 }
 
 function StudentHome({ student }: { student: StoredStudentProfile | null }) {
+  const isImported = student?.source === "import";
   const { done, total } = parseHours(student?.hours);
-  const pct = Math.round((done / total) * 100);
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const address = [student?.adresse, student?.codePostal, student?.ville]
     .filter(Boolean)
     .join(", ");
+  const balance = isImported ? 0 : STUDENT.balance;
   return (
     <div className="space-y-4">
-      <Card className="bg-gradient-to-br from-primary/25 to-card">
-        <p className="text-xs uppercase tracking-wider text-primary">Prochain cours</p>
-        <p className="mt-1 text-lg font-semibold">{STUDENT.nextLesson.date}</p>
-        <p className="text-sm text-muted-foreground">
-          {STUDENT.nextLesson.time} · {STUDENT.nextLesson.instructor}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">{STUDENT.nextLesson.place}</p>
-      </Card>
+      {isImported ? (
+        <Card className="bg-gradient-to-br from-muted/40 to-card">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Prochain cours</p>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
+            Aucun cours programmé pour le moment.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Contactez le secrétariat pour planifier votre première leçon.
+          </p>
+        </Card>
+      ) : (
+        <Card className="bg-gradient-to-br from-primary/25 to-card">
+          <p className="text-xs uppercase tracking-wider text-primary">Prochain cours</p>
+          <p className="mt-1 text-lg font-semibold">{STUDENT.nextLesson.date}</p>
+          <p className="text-sm text-muted-foreground">
+            {STUDENT.nextLesson.time} · {STUDENT.nextLesson.instructor}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{STUDENT.nextLesson.place}</p>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Card>
@@ -119,8 +133,10 @@ function StudentHome({ student }: { student: StoredStudentProfile | null }) {
         </Card>
         <Card>
           <p className="text-xs text-muted-foreground">Solde</p>
-          <p className="mt-1 text-2xl font-bold">{STUDENT.balance} €</p>
-          <p className="mt-2 text-[11px] text-muted-foreground">Crédit disponible</p>
+          <p className="mt-1 text-2xl font-bold">{balance} €</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {isImported ? "Aucune transaction" : "Crédit disponible"}
+          </p>
         </Card>
       </div>
 
@@ -172,7 +188,9 @@ function StudentHome({ student }: { student: StoredStudentProfile | null }) {
 }
 
 function StudentPlanning({ student }: { student: StoredStudentProfile | null }) {
+  const isImported = student?.source === "import";
   const name = fullName(student);
+  const upcoming = isImported ? [] : STUDENT.upcoming;
   return (
     <div className="space-y-3">
       <Card>
@@ -180,34 +198,44 @@ function StudentPlanning({ student }: { student: StoredStudentProfile | null }) 
         <p className="mt-1 text-base font-semibold">26 mai – 1 juin 2026</p>
         {student && <p className="mt-1 text-xs text-muted-foreground">Planning de {name}</p>}
       </Card>
-      {STUDENT.upcoming.map((l, i) => (
-        <Card key={i} className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/15 text-primary">
-            <CalendarDays className="h-5 w-5" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">{l.type}</p>
-            <p className="text-xs text-muted-foreground">
-              {l.date} · {l.time} · {l.instructor}
-            </p>
-          </div>
-          <span className="rounded-full bg-secondary px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-            À venir
-          </span>
-        </Card>
-      ))}
+      {upcoming.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Aucun cours programmé pour le moment.
+        </div>
+      ) : (
+        upcoming.map((l, i) => (
+          <Card key={i} className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/15 text-primary">
+              <CalendarDays className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold">{l.type}</p>
+              <p className="text-xs text-muted-foreground">
+                {l.date} · {l.time} · {l.instructor}
+              </p>
+            </div>
+            <span className="rounded-full bg-secondary px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+              À venir
+            </span>
+          </Card>
+        ))
+      )}
     </div>
   );
 }
 
-function StudentPayment() {
+
+function StudentPayment({ student }: { student: StoredStudentProfile | null }) {
+  const isImported = student?.source === "import";
   const [bought, setBought] = useState(0);
+  const baseBalance = isImported ? 0 : STUDENT.balance;
   return (
     <div className="space-y-4">
       <Card className="bg-gradient-to-br from-accent/25 to-card">
         <p className="text-xs uppercase tracking-wider text-accent">Solde financier</p>
-        <p className="mt-1 text-3xl font-bold">{STUDENT.balance + bought * 60} €</p>
+        <p className="mt-1 text-3xl font-bold">{baseBalance + bought * 60} €</p>
         <p className="text-xs text-muted-foreground">Mis à jour à l'instant</p>
+
       </Card>
 
       <Card>
@@ -255,7 +283,13 @@ function StudentPayment() {
 }
 
 function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
+  const isImported = student?.source === "import";
   const name = fullName(student);
+  const skills = isImported
+    ? STUDENT.skills.map((s) => ({ ...s, done: false }))
+    : STUDENT.skills;
+  const documents = isImported ? [] : STUDENT.documents;
+  const history = isImported ? [] : STUDENT.history;
   const address = [student?.adresse, student?.codePostal, student?.ville, student?.pays]
     .filter(Boolean)
     .join(", ");
@@ -289,9 +323,11 @@ function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
       )}
 
       <Card>
-        <h2 className="mb-3 text-sm font-semibold">Livret pédagogique</h2>
+        <h2 className="mb-3 text-sm font-semibold">
+          Livret pédagogique{isImported && <span className="ml-2 text-[10px] font-normal text-muted-foreground">· 0 % de progression</span>}
+        </h2>
         <ul className="space-y-2">
-          {STUDENT.skills.map((s) => (
+          {skills.map((s) => (
             <li key={s.name} className="flex items-center gap-2 text-sm">
               {s.done ? (
                 <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -309,38 +345,44 @@ function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
           <FileText className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">Mes documents</h2>
         </div>
-        <ul className="space-y-2">
-          {STUDENT.documents.map((d) => (
-            <li
-              key={d.name}
-              className="flex items-center gap-3 rounded-xl bg-secondary p-3"
-            >
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                <FileText className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{d.name}</p>
-                <p className="text-[11px] text-muted-foreground">{d.size}</p>
-              </div>
-              {d.status === "valid" ? (
-                <span className="rounded-full bg-success/15 px-2 py-1 text-[10px] font-semibold uppercase text-success">
-                  Validé ✔
-                </span>
-              ) : (
-                <span className="rounded-full bg-accent/20 px-2 py-1 text-[10px] font-semibold uppercase text-accent">
-                  En attente ⏳
-                </span>
-              )}
-              <button
-                type="button"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground"
-                aria-label={`Télécharger ${d.name}`}
+        {documents.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Aucun document. Déposez vos pièces auprès du secrétariat.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {documents.map((d) => (
+              <li
+                key={d.name}
+                className="flex items-center gap-3 rounded-xl bg-secondary p-3"
               >
-                <Download className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{d.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{d.size}</p>
+                </div>
+                {d.status === "valid" ? (
+                  <span className="rounded-full bg-success/15 px-2 py-1 text-[10px] font-semibold uppercase text-success">
+                    Validé ✔
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-accent/20 px-2 py-1 text-[10px] font-semibold uppercase text-accent">
+                    En attente ⏳
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground"
+                  aria-label={`Télécharger ${d.name}`}
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       <Card>
@@ -348,19 +390,26 @@ function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
           <MessageSquare className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">Livret d'apprentissage — historique</h2>
         </div>
-        <ul className="space-y-3">
-          {STUDENT.history.map((h, i) => (
-            <li key={i} className="rounded-xl bg-secondary p-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">{h.type}</p>
-                <span className="text-[11px] text-muted-foreground">{h.date}</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">Moniteur : {h.instructor}</p>
-              <p className="mt-2 text-sm italic text-foreground/90">« {h.comment} »</p>
-            </li>
-          ))}
-        </ul>
+        {history.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Aucun commentaire de moniteur pour le moment.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {history.map((h, i) => (
+              <li key={i} className="rounded-xl bg-secondary p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">{h.type}</p>
+                  <span className="text-[11px] text-muted-foreground">{h.date}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Moniteur : {h.instructor}</p>
+                <p className="mt-2 text-sm italic text-foreground/90">« {h.comment} »</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
+
     </div>
   );
 }
