@@ -90,21 +90,35 @@ function ProfileLine({ label, value }: { label: string; value: string }) {
 }
 
 function StudentHome({ student }: { student: StoredStudentProfile | null }) {
+  const isImported = student?.source === "import";
   const { done, total } = parseHours(student?.hours);
-  const pct = Math.round((done / total) * 100);
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const address = [student?.adresse, student?.codePostal, student?.ville]
     .filter(Boolean)
     .join(", ");
+  const balance = isImported ? 0 : STUDENT.balance;
   return (
     <div className="space-y-4">
-      <Card className="bg-gradient-to-br from-primary/25 to-card">
-        <p className="text-xs uppercase tracking-wider text-primary">Prochain cours</p>
-        <p className="mt-1 text-lg font-semibold">{STUDENT.nextLesson.date}</p>
-        <p className="text-sm text-muted-foreground">
-          {STUDENT.nextLesson.time} · {STUDENT.nextLesson.instructor}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">{STUDENT.nextLesson.place}</p>
-      </Card>
+      {isImported ? (
+        <Card className="bg-gradient-to-br from-muted/40 to-card">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">Prochain cours</p>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
+            Aucun cours programmé pour le moment.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Contactez le secrétariat pour planifier votre première leçon.
+          </p>
+        </Card>
+      ) : (
+        <Card className="bg-gradient-to-br from-primary/25 to-card">
+          <p className="text-xs uppercase tracking-wider text-primary">Prochain cours</p>
+          <p className="mt-1 text-lg font-semibold">{STUDENT.nextLesson.date}</p>
+          <p className="text-sm text-muted-foreground">
+            {STUDENT.nextLesson.time} · {STUDENT.nextLesson.instructor}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{STUDENT.nextLesson.place}</p>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Card>
@@ -119,8 +133,10 @@ function StudentHome({ student }: { student: StoredStudentProfile | null }) {
         </Card>
         <Card>
           <p className="text-xs text-muted-foreground">Solde</p>
-          <p className="mt-1 text-2xl font-bold">{STUDENT.balance} €</p>
-          <p className="mt-2 text-[11px] text-muted-foreground">Crédit disponible</p>
+          <p className="mt-1 text-2xl font-bold">{balance} €</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {isImported ? "Aucune transaction" : "Crédit disponible"}
+          </p>
         </Card>
       </div>
 
@@ -172,7 +188,9 @@ function StudentHome({ student }: { student: StoredStudentProfile | null }) {
 }
 
 function StudentPlanning({ student }: { student: StoredStudentProfile | null }) {
+  const isImported = student?.source === "import";
   const name = fullName(student);
+  const upcoming = isImported ? [] : STUDENT.upcoming;
   return (
     <div className="space-y-3">
       <Card>
@@ -180,25 +198,32 @@ function StudentPlanning({ student }: { student: StoredStudentProfile | null }) 
         <p className="mt-1 text-base font-semibold">26 mai – 1 juin 2026</p>
         {student && <p className="mt-1 text-xs text-muted-foreground">Planning de {name}</p>}
       </Card>
-      {STUDENT.upcoming.map((l, i) => (
-        <Card key={i} className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/15 text-primary">
-            <CalendarDays className="h-5 w-5" />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">{l.type}</p>
-            <p className="text-xs text-muted-foreground">
-              {l.date} · {l.time} · {l.instructor}
-            </p>
-          </div>
-          <span className="rounded-full bg-secondary px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-            À venir
-          </span>
-        </Card>
-      ))}
+      {upcoming.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Aucun cours programmé pour le moment.
+        </div>
+      ) : (
+        upcoming.map((l, i) => (
+          <Card key={i} className="flex items-center gap-3">
+            <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/15 text-primary">
+              <CalendarDays className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold">{l.type}</p>
+              <p className="text-xs text-muted-foreground">
+                {l.date} · {l.time} · {l.instructor}
+              </p>
+            </div>
+            <span className="rounded-full bg-secondary px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+              À venir
+            </span>
+          </Card>
+        ))
+      )}
     </div>
   );
 }
+
 
 function StudentPayment() {
   const [bought, setBought] = useState(0);
