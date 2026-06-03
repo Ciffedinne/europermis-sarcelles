@@ -17,6 +17,7 @@ export type StoredStudentProfile = {
   username: string;
   password: string;
   source: "seed" | "import";
+  createdAt?: number;
   adresse?: string;
   codePostal?: string;
   ville?: string;
