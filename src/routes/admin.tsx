@@ -39,7 +39,14 @@ import {
   type StoredStudentProfile,
 } from "@/lib/local-auth";
 
-type SortKey = "name" | "recent" | "city";
+type SortKey = "recent" | "nameAsc" | "nameDesc" | "city";
+type StatusFilter = "all" | "active" | "inactive";
+
+function isActiveStudent(s: StoredStudentProfile) {
+  const m = (s.hours ?? "").match(/^(\d+)\//);
+  if (!m) return false;
+  return Number(m[1]) > 0;
+}
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Espace Admin — Euro-Permis Sarcelles" }] }),
