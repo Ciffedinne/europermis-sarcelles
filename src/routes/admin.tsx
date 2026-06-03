@@ -139,6 +139,7 @@ function AdminApp() {
           pkg: "À définir",
           hours: "0/20",
           source: "import",
+          createdAt: Date.now() + added,
         };
         byNeph.set(created.neph, created);
         added++;
