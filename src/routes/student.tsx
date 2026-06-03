@@ -77,8 +77,12 @@ function parseHours(hours?: string) {
   return { done: Number(match[1]), total: Number(match[2]) || STUDENT.hoursTotal };
 }
 
-function StudentHome() {
-  const pct = Math.round((STUDENT.hoursDone / STUDENT.hoursTotal) * 100);
+function StudentHome({ student }: { student: StoredStudentProfile | null }) {
+  const { done, total } = parseHours(student?.hours);
+  const pct = Math.round((done / total) * 100);
+  const address = [student?.adresse, student?.codePostal, student?.ville]
+    .filter(Boolean)
+    .join(", ");
   return (
     <div className="space-y-4">
       <Card className="bg-gradient-to-br from-primary/25 to-card">
@@ -94,8 +98,8 @@ function StudentHome() {
         <Card>
           <p className="text-xs text-muted-foreground">Heures effectuées</p>
           <p className="mt-1 text-2xl font-bold">
-            {STUDENT.hoursDone}
-            <span className="text-sm font-medium text-muted-foreground">/{STUDENT.hoursTotal}h</span>
+            {done}
+            <span className="text-sm font-medium text-muted-foreground">/{total}h</span>
           </p>
           <div className="mt-2 h-1.5 w-full rounded-full bg-secondary">
             <div className="h-1.5 rounded-full bg-primary" style={{ width: `${pct}%` }} />
@@ -124,6 +128,18 @@ function StudentHome() {
           <MapPin className="h-4 w-4" /> Itinéraire
         </a>
       </div>
+
+      {student && (
+        <Card>
+          <div className="mb-2 flex items-center gap-2">
+            <User className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Dossier connecté</h2>
+          </div>
+          <p className="text-sm font-semibold">{student.civilite} {fullName(student)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">NEPH : {student.neph || "—"}</p>
+          {address && <p className="mt-1 text-xs text-muted-foreground">{address}</p>}
+        </Card>
+      )}
 
       <Card>
         <div className="mb-2 flex items-center gap-2">
