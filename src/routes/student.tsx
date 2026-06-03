@@ -77,6 +77,15 @@ function parseHours(hours?: string) {
   return { done: Number(match[1]), total: Number(match[2]) || STUDENT.hoursTotal };
 }
 
+function ProfileLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2 last:border-b-0">
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className="text-right text-xs font-medium">{value || "—"}</span>
+    </div>
+  );
+}
+
 function StudentHome({ student }: { student: StoredStudentProfile | null }) {
   const { done, total } = parseHours(student?.hours);
   const pct = Math.round((done / total) * 100);
