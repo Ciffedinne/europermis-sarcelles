@@ -384,23 +384,37 @@ function AdminStudents({
 }) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const normalize = (s: string) =>
     s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+  const counts = useMemo(() => {
+    let active = 0;
+    for (const s of students) if (isActiveStudent(s)) active++;
+    return { all: students.length, active, inactive: students.length - active };
+  }, [students]);
+
   const filtered = useMemo(() => {
     const q = normalize(query.trim());
     let list = students;
+    if (statusFilter !== "all") {
+      list = list.filter((s) =>
+        statusFilter === "active" ? isActiveStudent(s) : !isActiveStudent(s),
+      );
+    }
     if (q) {
-      list = students.filter((s) =>
+      list = list.filter((s) =>
         [s.nom, s.prenom, s.neph, s.ville ?? "", s.email ?? ""].some((f) =>
           normalize(f).includes(q),
         ),
       );
     }
     const sorted = [...list];
-    if (sortKey === "name") {
+    if (sortKey === "nameAsc") {
       sorted.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+    } else if (sortKey === "nameDesc") {
+      sorted.sort((a, b) => b.nom.localeCompare(a.nom, "fr"));
     } else if (sortKey === "city") {
       sorted.sort((a, b) => {
         const ka = `${a.codePostal ?? ""} ${a.ville ?? a.lieuNaissance ?? ""}`;
@@ -408,15 +422,45 @@ function AdminStudents({
         return ka.localeCompare(kb, "fr");
       });
     } else {
-      // recent : imports en premier, puis ordre d'arrivée inversé
+      // Récents : les plus récemment ajoutés en haut (createdAt desc), seeds en dernier
       sorted.sort((a, b) => {
+        const ta = a.createdAt ?? 0;
+        const tb = b.createdAt ?? 0;
+        if (ta !== tb) return tb - ta;
         if (a.source !== b.source) return a.source === "import" ? -1 : 1;
         return 0;
       });
-      sorted.reverse();
     }
     return sorted;
-  }, [students, query, sortKey]);
+  }, [students, query, sortKey, statusFilter]);
+
+  const sortBtn = (key: SortKey, label: string) => (
+    <button
+      type="button"
+      onClick={() => setSortKey(key)}
+      className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+        sortKey === key
+          ? "bg-primary text-primary-foreground"
+          : "border border-border bg-card text-foreground hover:bg-secondary"
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const statusBtn = (key: StatusFilter, label: string, count: number) => (
+    <button
+      type="button"
+      onClick={() => setStatusFilter(key)}
+      className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+        statusFilter === key
+          ? "bg-accent text-accent-foreground"
+          : "border border-border bg-card text-foreground hover:bg-secondary"
+      }`}
+    >
+      {label} <span className="opacity-70">({count})</span>
+    </button>
+  );
 
   return (
     <div className="space-y-3">
@@ -437,28 +481,37 @@ function AdminStudents({
         </button>
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher : nom, prénom ou NEPH…"
-            className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-3 text-sm outline-none ring-primary/40 transition focus:border-primary focus:ring-2"
-          />
-        </div>
-        <select
-          value={sortKey}
-          onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="rounded-xl border border-border bg-card px-3 py-2.5 text-sm font-medium outline-none focus:border-primary"
-          aria-label="Trier par"
-        >
-          <option value="recent">Trier par : Récents</option>
-          <option value="name">Trier par : Nom (A–Z)</option>
-          <option value="city">Trier par : Code postal / Ville</option>
-        </select>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rechercher : nom, prénom, NEPH, ville…"
+          className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-3 text-sm outline-none ring-primary/40 transition focus:border-primary focus:ring-2"
+        />
       </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <span className="self-center text-[10px] uppercase tracking-wider text-muted-foreground">
+          Tri :
+        </span>
+        {sortBtn("recent", "Récents")}
+        {sortBtn("nameAsc", "Nom A–Z")}
+        {sortBtn("nameDesc", "Nom Z–A")}
+        {sortBtn("city", "Ville / CP")}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <span className="self-center text-[10px] uppercase tracking-wider text-muted-foreground">
+          État :
+        </span>
+        {statusBtn("all", "Tous", counts.all)}
+        {statusBtn("active", "Actifs", counts.active)}
+        {statusBtn("inactive", "Inactifs", counts.inactive)}
+      </div>
+
+
 
       {filtered.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
