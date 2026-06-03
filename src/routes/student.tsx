@@ -323,9 +323,11 @@ function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
       )}
 
       <Card>
-        <h2 className="mb-3 text-sm font-semibold">Livret pédagogique</h2>
+        <h2 className="mb-3 text-sm font-semibold">
+          Livret pédagogique{isImported && <span className="ml-2 text-[10px] font-normal text-muted-foreground">· 0 % de progression</span>}
+        </h2>
         <ul className="space-y-2">
-          {STUDENT.skills.map((s) => (
+          {skills.map((s) => (
             <li key={s.name} className="flex items-center gap-2 text-sm">
               {s.done ? (
                 <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -343,38 +345,44 @@ function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
           <FileText className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">Mes documents</h2>
         </div>
-        <ul className="space-y-2">
-          {STUDENT.documents.map((d) => (
-            <li
-              key={d.name}
-              className="flex items-center gap-3 rounded-xl bg-secondary p-3"
-            >
-              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-                <FileText className="h-4 w-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{d.name}</p>
-                <p className="text-[11px] text-muted-foreground">{d.size}</p>
-              </div>
-              {d.status === "valid" ? (
-                <span className="rounded-full bg-success/15 px-2 py-1 text-[10px] font-semibold uppercase text-success">
-                  Validé ✔
-                </span>
-              ) : (
-                <span className="rounded-full bg-accent/20 px-2 py-1 text-[10px] font-semibold uppercase text-accent">
-                  En attente ⏳
-                </span>
-              )}
-              <button
-                type="button"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground"
-                aria-label={`Télécharger ${d.name}`}
+        {documents.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Aucun document. Déposez vos pièces auprès du secrétariat.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {documents.map((d) => (
+              <li
+                key={d.name}
+                className="flex items-center gap-3 rounded-xl bg-secondary p-3"
               >
-                <Download className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-        </ul>
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{d.name}</p>
+                  <p className="text-[11px] text-muted-foreground">{d.size}</p>
+                </div>
+                {d.status === "valid" ? (
+                  <span className="rounded-full bg-success/15 px-2 py-1 text-[10px] font-semibold uppercase text-success">
+                    Validé ✔
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-accent/20 px-2 py-1 text-[10px] font-semibold uppercase text-accent">
+                    En attente ⏳
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground"
+                  aria-label={`Télécharger ${d.name}`}
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       <Card>
@@ -382,19 +390,26 @@ function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
           <MessageSquare className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold">Livret d'apprentissage — historique</h2>
         </div>
-        <ul className="space-y-3">
-          {STUDENT.history.map((h, i) => (
-            <li key={i} className="rounded-xl bg-secondary p-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">{h.type}</p>
-                <span className="text-[11px] text-muted-foreground">{h.date}</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">Moniteur : {h.instructor}</p>
-              <p className="mt-2 text-sm italic text-foreground/90">« {h.comment} »</p>
-            </li>
-          ))}
-        </ul>
+        {history.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Aucun commentaire de moniteur pour le moment.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {history.map((h, i) => (
+              <li key={i} className="rounded-xl bg-secondary p-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">{h.type}</p>
+                  <span className="text-[11px] text-muted-foreground">{h.date}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Moniteur : {h.instructor}</p>
+                <p className="mt-2 text-sm italic text-foreground/90">« {h.comment} »</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
+
     </div>
   );
 }
