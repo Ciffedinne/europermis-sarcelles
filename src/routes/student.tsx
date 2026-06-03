@@ -18,6 +18,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { SCHOOL, STUDENT, PRICING } from "@/lib/mock-data";
+import { getActiveStudentProfile, type StoredStudentProfile } from "@/lib/local-auth";
 
 export const Route = createFileRoute("/student")({
   head: () => ({ meta: [{ title: "Espace Élève — Euro-Permis Sarcelles" }] }),
@@ -35,8 +36,10 @@ const TABS: TabItem<Tab>[] = [
 
 function StudentApp() {
   const [tab, setTab] = useState<Tab>("home");
+  const [activeStudent] = useState<StoredStudentProfile | null>(() => getActiveStudentProfile());
+  const firstName = activeStudent?.prenom || "Jean";
   const titles: Record<Tab, string> = {
-    home: "Bonjour Jean 👋",
+    home: `Bonjour ${firstName} 👋`,
     planning: "Mon planning",
     payment: "Paiement & tarifs",
     profile: "Mon profil",
@@ -44,10 +47,10 @@ function StudentApp() {
   return (
     <>
       <AppShell title={titles[tab]} subtitle="Espace Élève">
-        {tab === "home" && <StudentHome />}
-        {tab === "planning" && <StudentPlanning />}
+        {tab === "home" && <StudentHome student={activeStudent} />}
+        {tab === "planning" && <StudentPlanning student={activeStudent} />}
         {tab === "payment" && <StudentPayment />}
-        {tab === "profile" && <StudentProfile />}
+        {tab === "profile" && <StudentProfile student={activeStudent} />}
       </AppShell>
       <BottomNav items={TABS} active={tab} onChange={setTab} />
     </>
@@ -58,6 +61,20 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   return (
     <div className={`rounded-2xl border border-border bg-card p-4 ${className}`}>{children}</div>
   );
+}
+
+function fullName(student: StoredStudentProfile | null) {
+  return student ? `${student.prenom} ${student.nom}`.trim() : STUDENT.fullName;
+}
+
+function initials(student: StoredStudentProfile | null) {
+  return student ? `${student.prenom[0] ?? ""}${student.nom[0] ?? ""}`.toUpperCase() : "JD";
+}
+
+function parseHours(hours?: string) {
+  const match = (hours ?? "").match(/^(\d+)\/(\d+)/);
+  if (!match) return { done: STUDENT.hoursDone, total: STUDENT.hoursTotal };
+  return { done: Number(match[1]), total: Number(match[2]) || STUDENT.hoursTotal };
 }
 
 function StudentHome() {
