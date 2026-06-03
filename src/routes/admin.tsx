@@ -93,11 +93,8 @@ function AdminApp() {
   // Hydration depuis localStorage au montage
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as ManagedStudent[];
-        if (Array.isArray(parsed) && parsed.length > 0) setStudents(parsed);
-      }
+      const parsed = getStoredStudents();
+      if (parsed.length > 0) setStudents(parsed);
     } catch {
       /* ignore */
     }
@@ -108,7 +105,8 @@ function AdminApp() {
   useEffect(() => {
     if (!hydrated) return;
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify(students));
+      saveStoredStudents(students);
+      syncStudentAuthUsers(students);
     } catch {
       /* ignore */
     }
@@ -158,7 +156,8 @@ function AdminApp() {
     if (!window.confirm("Voulez-vous vraiment vider la liste des élèves ?")) return;
     setStudents([]);
     try {
-      localStorage.removeItem(LS_KEY);
+      localStorage.removeItem(STUDENTS_STORAGE_KEY);
+      syncStudentAuthUsers([]);
     } catch {
       /* ignore */
     }
