@@ -148,6 +148,7 @@ function AdminApp() {
 
   const deleteStudent = (id: string) => {
     setStudents((prev) => prev.filter((s) => s.id !== id));
+    clearActiveStudentSession(id);
     setOpenStudent(null);
     toast.success("Élève supprimé.");
   };
@@ -158,6 +159,7 @@ function AdminApp() {
     try {
       localStorage.removeItem(STUDENTS_STORAGE_KEY);
       syncStudentAuthUsers([]);
+      clearActiveStudentSession();
     } catch {
       /* ignore */
     }
