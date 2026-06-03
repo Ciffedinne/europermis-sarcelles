@@ -225,14 +225,17 @@ function StudentPlanning({ student }: { student: StoredStudentProfile | null }) 
 }
 
 
-function StudentPayment() {
+function StudentPayment({ student }: { student: StoredStudentProfile | null }) {
+  const isImported = student?.source === "import";
   const [bought, setBought] = useState(0);
+  const baseBalance = isImported ? 0 : STUDENT.balance;
   return (
     <div className="space-y-4">
       <Card className="bg-gradient-to-br from-accent/25 to-card">
         <p className="text-xs uppercase tracking-wider text-accent">Solde financier</p>
-        <p className="mt-1 text-3xl font-bold">{STUDENT.balance + bought * 60} €</p>
+        <p className="mt-1 text-3xl font-bold">{baseBalance + bought * 60} €</p>
         <p className="text-xs text-muted-foreground">Mis à jour à l'instant</p>
+
       </Card>
 
       <Card>
