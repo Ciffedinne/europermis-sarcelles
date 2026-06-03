@@ -159,12 +159,14 @@ function StudentHome({ student }: { student: StoredStudentProfile | null }) {
   );
 }
 
-function StudentPlanning() {
+function StudentPlanning({ student }: { student: StoredStudentProfile | null }) {
+  const name = fullName(student);
   return (
     <div className="space-y-3">
       <Card>
         <p className="text-xs text-muted-foreground">Semaine en cours</p>
         <p className="mt-1 text-base font-semibold">26 mai – 1 juin 2026</p>
+        {student && <p className="mt-1 text-xs text-muted-foreground">Planning de {name}</p>}
       </Card>
       {STUDENT.upcoming.map((l, i) => (
         <Card key={i} className="flex items-center gap-3">
@@ -240,19 +242,39 @@ function StudentPayment() {
   );
 }
 
-function StudentProfile() {
+function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
+  const name = fullName(student);
+  const address = [student?.adresse, student?.codePostal, student?.ville, student?.pays]
+    .filter(Boolean)
+    .join(", ");
   return (
     <div className="space-y-4">
       <Card className="flex items-center gap-3">
         <div className="grid h-14 w-14 place-items-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-          JD
+          {initials(student)}
         </div>
         <div>
-          <p className="text-base font-semibold">{STUDENT.fullName}</p>
-          <p className="text-xs text-muted-foreground">@{STUDENT.username}</p>
-          <p className="text-xs text-muted-foreground">NEPH : {STUDENT.neph}</p>
+          <p className="text-base font-semibold">{name}</p>
+          <p className="text-xs text-muted-foreground">@{student?.username ?? STUDENT.username}</p>
+          <p className="text-xs text-muted-foreground">NEPH : {student?.neph || STUDENT.neph}</p>
         </div>
       </Card>
+
+      {student && (
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold">Informations du dossier</h2>
+          <div className="space-y-2 text-sm">
+            <ProfileLine label="Civilité" value={student.civilite} />
+            <ProfileLine label="Date de naissance" value={student.dateNaissance} />
+            <ProfileLine label="Lieu de naissance" value={student.lieuNaissance} />
+            {student.departementNaissance && <ProfileLine label="Département" value={student.departementNaissance} />}
+            {student.paysNaissance && <ProfileLine label="Pays naissance" value={student.paysNaissance} />}
+            {address && <ProfileLine label="Adresse" value={address} />}
+            {student.telephone && <ProfileLine label="Téléphone" value={student.telephone} />}
+            {student.email && <ProfileLine label="Email" value={student.email} />}
+          </div>
+        </Card>
+      )}
 
       <Card>
         <h2 className="mb-3 text-sm font-semibold">Livret pédagogique</h2>
