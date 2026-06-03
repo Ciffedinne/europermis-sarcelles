@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Home,
   CalendarDays,
@@ -36,7 +36,10 @@ const TABS: TabItem<Tab>[] = [
 
 function StudentApp() {
   const [tab, setTab] = useState<Tab>("home");
-  const [activeStudent] = useState<StoredStudentProfile | null>(() => getActiveStudentProfile());
+  const [activeStudent, setActiveStudent] = useState<StoredStudentProfile | null>(null);
+  useEffect(() => {
+    setActiveStudent(getActiveStudentProfile());
+  }, []);
   const firstName = activeStudent?.prenom || "Jean";
   const titles: Record<Tab, string> = {
     home: `Bonjour ${firstName} 👋`,
