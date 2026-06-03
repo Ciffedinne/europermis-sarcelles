@@ -1,6 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { GraduationCap, UserCog, ShieldCheck, Car } from "lucide-react";
+import {
+  authenticateLocalUser,
+  setActiveSession,
+  startDemoSession,
+  type MockRole,
+} from "@/lib/local-auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -20,6 +26,13 @@ function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const goToRole = (role: MockRole) => {
+    if (role === "admin") navigate({ to: "/admin" });
+    else if (role === "instructor") navigate({ to: "/instructor" });
+    else navigate({ to: "/student" });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,11 +53,14 @@ function LoginPage() {
           className="mt-8 space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            // Mock — pas d'auth réelle à cette étape.
-            if (username.toLowerCase().includes("monit")) navigate({ to: "/instructor" });
-            else if (username.toLowerCase().includes("admin") || username.toLowerCase().includes("secret"))
-              navigate({ to: "/admin" });
-            else navigate({ to: "/student" });
+            const user = authenticateLocalUser(username, password);
+            if (!user) {
+              setError("Identifiant ou mot de passe incorrect.");
+              return;
+            }
+            setError(null);
+            setActiveSession(user);
+            goToRole(user.role);
           }}
         >
           <div>
@@ -76,6 +92,11 @@ function LoginPage() {
           >
             Se connecter
           </button>
+          {error && (
+            <p className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+              {error}
+            </p>
+          )}
         </form>
 
         <div className="my-6 flex items-center gap-3">
@@ -91,19 +112,28 @@ function LoginPage() {
             label="Tester l'Espace Élève"
             sub="eleve_jean"
             icon={GraduationCap}
-            onClick={() => navigate({ to: "/student" })}
+            onClick={() => {
+              startDemoSession("student");
+              navigate({ to: "/student" });
+            }}
           />
           <DemoButton
             label="Tester l'Espace Moniteur"
             sub="moniteur_karim"
             icon={UserCog}
-            onClick={() => navigate({ to: "/instructor" })}
+            onClick={() => {
+              startDemoSession("instructor");
+              navigate({ to: "/instructor" });
+            }}
           />
           <DemoButton
             label="Tester l'Espace Secrétaire (Admin)"
             sub="admin_secretaire"
             icon={ShieldCheck}
-            onClick={() => navigate({ to: "/admin" })}
+            onClick={() => {
+              startDemoSession("admin");
+              navigate({ to: "/admin" });
+            }}
           />
         </div>
 

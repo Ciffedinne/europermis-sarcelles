@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Home,
   CalendarDays,
@@ -18,6 +18,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { SCHOOL, STUDENT, PRICING } from "@/lib/mock-data";
+import { getActiveStudentProfile, type StoredStudentProfile } from "@/lib/local-auth";
 
 export const Route = createFileRoute("/student")({
   head: () => ({ meta: [{ title: "Espace Élève — Euro-Permis Sarcelles" }] }),
@@ -35,8 +36,13 @@ const TABS: TabItem<Tab>[] = [
 
 function StudentApp() {
   const [tab, setTab] = useState<Tab>("home");
+  const [activeStudent, setActiveStudent] = useState<StoredStudentProfile | null>(null);
+  useEffect(() => {
+    setActiveStudent(getActiveStudentProfile());
+  }, []);
+  const firstName = activeStudent?.prenom || "Jean";
   const titles: Record<Tab, string> = {
-    home: "Bonjour Jean 👋",
+    home: `Bonjour ${firstName} 👋`,
     planning: "Mon planning",
     payment: "Paiement & tarifs",
     profile: "Mon profil",
@@ -44,10 +50,10 @@ function StudentApp() {
   return (
     <>
       <AppShell title={titles[tab]} subtitle="Espace Élève">
-        {tab === "home" && <StudentHome />}
-        {tab === "planning" && <StudentPlanning />}
+        {tab === "home" && <StudentHome student={activeStudent} />}
+        {tab === "planning" && <StudentPlanning student={activeStudent} />}
         {tab === "payment" && <StudentPayment />}
-        {tab === "profile" && <StudentProfile />}
+        {tab === "profile" && <StudentProfile student={activeStudent} />}
       </AppShell>
       <BottomNav items={TABS} active={tab} onChange={setTab} />
     </>
@@ -60,8 +66,35 @@ function Card({ children, className = "" }: { children: React.ReactNode; classNa
   );
 }
 
-function StudentHome() {
-  const pct = Math.round((STUDENT.hoursDone / STUDENT.hoursTotal) * 100);
+function fullName(student: StoredStudentProfile | null) {
+  return student ? `${student.prenom} ${student.nom}`.trim() : STUDENT.fullName;
+}
+
+function initials(student: StoredStudentProfile | null) {
+  return student ? `${student.prenom[0] ?? ""}${student.nom[0] ?? ""}`.toUpperCase() : "JD";
+}
+
+function parseHours(hours?: string) {
+  const match = (hours ?? "").match(/^(\d+)\/(\d+)/);
+  if (!match) return { done: STUDENT.hoursDone, total: STUDENT.hoursTotal };
+  return { done: Number(match[1]), total: Number(match[2]) || STUDENT.hoursTotal };
+}
+
+function ProfileLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-border/60 pb-2 last:border-b-0">
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className="text-right text-xs font-medium">{value || "—"}</span>
+    </div>
+  );
+}
+
+function StudentHome({ student }: { student: StoredStudentProfile | null }) {
+  const { done, total } = parseHours(student?.hours);
+  const pct = Math.round((done / total) * 100);
+  const address = [student?.adresse, student?.codePostal, student?.ville]
+    .filter(Boolean)
+    .join(", ");
   return (
     <div className="space-y-4">
       <Card className="bg-gradient-to-br from-primary/25 to-card">
@@ -77,8 +110,8 @@ function StudentHome() {
         <Card>
           <p className="text-xs text-muted-foreground">Heures effectuées</p>
           <p className="mt-1 text-2xl font-bold">
-            {STUDENT.hoursDone}
-            <span className="text-sm font-medium text-muted-foreground">/{STUDENT.hoursTotal}h</span>
+            {done}
+            <span className="text-sm font-medium text-muted-foreground">/{total}h</span>
           </p>
           <div className="mt-2 h-1.5 w-full rounded-full bg-secondary">
             <div className="h-1.5 rounded-full bg-primary" style={{ width: `${pct}%` }} />
@@ -108,6 +141,18 @@ function StudentHome() {
         </a>
       </div>
 
+      {student && (
+        <Card>
+          <div className="mb-2 flex items-center gap-2">
+            <User className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Dossier connecté</h2>
+          </div>
+          <p className="text-sm font-semibold">{student.civilite} {fullName(student)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">NEPH : {student.neph || "—"}</p>
+          {address && <p className="mt-1 text-xs text-muted-foreground">{address}</p>}
+        </Card>
+      )}
+
       <Card>
         <div className="mb-2 flex items-center gap-2">
           <Clock className="h-4 w-4 text-primary" />
@@ -126,12 +171,14 @@ function StudentHome() {
   );
 }
 
-function StudentPlanning() {
+function StudentPlanning({ student }: { student: StoredStudentProfile | null }) {
+  const name = fullName(student);
   return (
     <div className="space-y-3">
       <Card>
         <p className="text-xs text-muted-foreground">Semaine en cours</p>
         <p className="mt-1 text-base font-semibold">26 mai – 1 juin 2026</p>
+        {student && <p className="mt-1 text-xs text-muted-foreground">Planning de {name}</p>}
       </Card>
       {STUDENT.upcoming.map((l, i) => (
         <Card key={i} className="flex items-center gap-3">
@@ -207,19 +254,39 @@ function StudentPayment() {
   );
 }
 
-function StudentProfile() {
+function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
+  const name = fullName(student);
+  const address = [student?.adresse, student?.codePostal, student?.ville, student?.pays]
+    .filter(Boolean)
+    .join(", ");
   return (
     <div className="space-y-4">
       <Card className="flex items-center gap-3">
         <div className="grid h-14 w-14 place-items-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-          JD
+          {initials(student)}
         </div>
         <div>
-          <p className="text-base font-semibold">{STUDENT.fullName}</p>
-          <p className="text-xs text-muted-foreground">@{STUDENT.username}</p>
-          <p className="text-xs text-muted-foreground">NEPH : {STUDENT.neph}</p>
+          <p className="text-base font-semibold">{name}</p>
+          <p className="text-xs text-muted-foreground">@{student?.username ?? STUDENT.username}</p>
+          <p className="text-xs text-muted-foreground">NEPH : {student?.neph || STUDENT.neph}</p>
         </div>
       </Card>
+
+      {student && (
+        <Card>
+          <h2 className="mb-3 text-sm font-semibold">Informations du dossier</h2>
+          <div className="space-y-2 text-sm">
+            <ProfileLine label="Civilité" value={student.civilite} />
+            <ProfileLine label="Date de naissance" value={student.dateNaissance} />
+            <ProfileLine label="Lieu de naissance" value={student.lieuNaissance} />
+            {student.departementNaissance && <ProfileLine label="Département" value={student.departementNaissance} />}
+            {student.paysNaissance && <ProfileLine label="Pays naissance" value={student.paysNaissance} />}
+            {address && <ProfileLine label="Adresse" value={address} />}
+            {student.telephone && <ProfileLine label="Téléphone" value={student.telephone} />}
+            {student.email && <ProfileLine label="Email" value={student.email} />}
+          </div>
+        </Card>
+      )}
 
       <Card>
         <h2 className="mb-3 text-sm font-semibold">Livret pédagogique</h2>
