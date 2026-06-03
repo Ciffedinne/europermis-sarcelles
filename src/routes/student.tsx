@@ -52,7 +52,7 @@ function StudentApp() {
       <AppShell title={titles[tab]} subtitle="Espace Élève">
         {tab === "home" && <StudentHome student={activeStudent} />}
         {tab === "planning" && <StudentPlanning student={activeStudent} />}
-        {tab === "payment" && <StudentPayment />}
+        {tab === "payment" && <StudentPayment student={activeStudent} />}
         {tab === "profile" && <StudentProfile student={activeStudent} />}
       </AppShell>
       <BottomNav items={TABS} active={tab} onChange={setTab} />
