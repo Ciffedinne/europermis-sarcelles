@@ -283,7 +283,13 @@ function StudentPayment({ student }: { student: StoredStudentProfile | null }) {
 }
 
 function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
+  const isImported = student?.source === "import";
   const name = fullName(student);
+  const skills = isImported
+    ? STUDENT.skills.map((s) => ({ ...s, done: false }))
+    : STUDENT.skills;
+  const documents = isImported ? [] : STUDENT.documents;
+  const history = isImported ? [] : STUDENT.history;
   const address = [student?.adresse, student?.codePostal, student?.ville, student?.pays]
     .filter(Boolean)
     .join(", ");
