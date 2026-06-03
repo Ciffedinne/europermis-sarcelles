@@ -30,8 +30,14 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { INSTRUCTORS, PLANNING } from "@/lib/mock-data";
-
-const LS_KEY = "europermis.students.v1";
+import {
+  clearActiveStudentSession,
+  getStoredStudents,
+  saveStoredStudents,
+  STUDENTS_STORAGE_KEY,
+  syncStudentAuthUsers,
+  type StoredStudentProfile,
+} from "@/lib/local-auth";
 
 type SortKey = "name" | "recent" | "city";
 
@@ -50,30 +56,7 @@ const TABS: TabItem<Tab>[] = [
 
 // ---- Types & seed ----------------------------------------------------------
 
-export type ManagedStudent = {
-  id: string;
-  civilite: string;
-  nom: string;
-  prenom: string;
-  dateNaissance: string;
-  lieuNaissance: string;
-  neph: string;
-  pkg: string;
-  hours: string;
-  username: string;
-  password: string;
-  source: "seed" | "import";
-  // Champs étendus (export EXPORT.TXT)
-  adresse?: string;
-  codePostal?: string;
-  ville?: string;
-  pays?: string;
-  telephone?: string;
-  email?: string;
-  departementNaissance?: string;
-  paysNaissance?: string;
-  datePremierPermis?: string;
-};
+export type ManagedStudent = StoredStudentProfile;
 
 const SEED_STUDENTS: ManagedStudent[] = [
   { civilite: "M.", nom: "Dupont", prenom: "Jean", dateNaissance: "12/03/2004", lieuNaissance: "Sarcelles", neph: "0123456789", pkg: "Permis B 20h", hours: "14/20" },
