@@ -78,9 +78,11 @@ function InstructorHome({ onOpen }: { onOpen: (id: string) => void }) {
 function InstructorValidate({
   lessonId,
   setLessonId,
+  onClose,
 }: {
   lessonId: string | null;
   setLessonId: (id: string | null) => void;
+  onClose: () => void;
 }) {
   const lesson = INSTRUCTOR.today.find((l) => l.id === lessonId) ?? INSTRUCTOR.today[2];
   const [checks, setChecks] = useState<Record<string, boolean>>({});
