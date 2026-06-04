@@ -30,7 +30,7 @@ function InstructorApp() {
     <>
       <AppShell title={titles[tab]} subtitle={`Moniteur · ${INSTRUCTOR.fullName}`}>
         {tab === "home" && <InstructorHome onOpen={(id) => { setOpenLesson(id); setTab("validate"); }} />}
-        {tab === "validate" && <InstructorValidate lessonId={openLesson} setLessonId={setOpenLesson} />}
+        {tab === "validate" && <InstructorValidate lessonId={openLesson} setLessonId={setOpenLesson} onClose={() => { setOpenLesson(null); setTab("home"); }} />}
         {tab === "profile" && <InstructorProfile />}
       </AppShell>
       <BottomNav items={TABS} active={tab} onChange={setTab} />
