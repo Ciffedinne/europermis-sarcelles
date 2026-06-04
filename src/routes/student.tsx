@@ -317,7 +317,15 @@ function StudentProfile({ student }: { student: StoredStudentProfile | null }) {
     ? STUDENT.skills.map((s) => ({ ...s, done: false }))
     : STUDENT.skills;
   const documents = isImported ? [] : STUDENT.documents;
-  const history = isImported ? [] : STUDENT.history;
+  const displayName = `${student?.prenom ?? ""} ${student?.nom ?? ""}`.trim() || (isImported ? "" : "Jean Dupont");
+  const extra = getAppreciationsForStudent(displayName).map((a) => ({
+    date: a.date,
+    type: a.type,
+    instructor: a.instructor,
+    comment: a.comment,
+  }));
+  const baseHistory = isImported ? [] : STUDENT.history;
+  const history = [...extra, ...baseHistory];
   const address = [student?.adresse, student?.codePostal, student?.ville, student?.pays]
     .filter(Boolean)
     .join(", ");
