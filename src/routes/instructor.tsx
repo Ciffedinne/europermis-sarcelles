@@ -30,7 +30,7 @@ function InstructorApp() {
     <>
       <AppShell title={titles[tab]} subtitle={`Moniteur · ${INSTRUCTOR.fullName}`}>
         {tab === "home" && <InstructorHome onOpen={(id) => { setOpenLesson(id); setTab("validate"); }} />}
-        {tab === "validate" && <InstructorValidate lessonId={openLesson} setLessonId={setOpenLesson} />}
+        {tab === "validate" && <InstructorValidate lessonId={openLesson} setLessonId={setOpenLesson} onClose={() => { setOpenLesson(null); setTab("home"); }} />}
         {tab === "profile" && <InstructorProfile />}
       </AppShell>
       <BottomNav items={TABS} active={tab} onChange={setTab} />
@@ -78,9 +78,11 @@ function InstructorHome({ onOpen }: { onOpen: (id: string) => void }) {
 function InstructorValidate({
   lessonId,
   setLessonId,
+  onClose,
 }: {
   lessonId: string | null;
   setLessonId: (id: string | null) => void;
+  onClose: () => void;
 }) {
   const lesson = INSTRUCTOR.today.find((l) => l.id === lessonId) ?? INSTRUCTOR.today[2];
   const [checks, setChecks] = useState<Record<string, boolean>>({});
@@ -121,7 +123,7 @@ function InstructorValidate({
         </div>
         <button
           type="button"
-          onClick={() => setLessonId(null)}
+          onClick={() => { setLessonId(null); onClose(); }}
           className="grid h-8 w-8 place-items-center rounded-full bg-secondary text-muted-foreground"
           aria-label="Fermer"
         >
