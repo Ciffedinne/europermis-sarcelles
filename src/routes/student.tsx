@@ -172,13 +172,28 @@ function StudentHome({ student }: { student: StoredStudentProfile | null }) {
       <Card>
         <div className="mb-2 flex items-center gap-2">
           <Clock className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold">Horaires de l'agence</h2>
+          <h2 className="text-sm font-semibold">Horaires bureau</h2>
         </div>
         <ul className="divide-y divide-border text-sm">
           {SCHOOL.hours.map((h) => (
             <li key={h.day} className="flex justify-between py-2">
               <span className="text-muted-foreground">{h.day}</span>
-              <span className="font-medium">{h.time}</span>
+              <span className="text-right font-medium">{h.time}</span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card>
+        <div className="mb-2 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold">Horaires conduite</h2>
+        </div>
+        <ul className="divide-y divide-border text-sm">
+          {SCHOOL.drivingHours.map((h) => (
+            <li key={h.day} className="flex justify-between py-2">
+              <span className="text-muted-foreground">{h.day}</span>
+              <span className="text-right font-medium">{h.time}</span>
             </li>
           ))}
         </ul>
