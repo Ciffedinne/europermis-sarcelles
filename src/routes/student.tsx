@@ -278,19 +278,31 @@ function StudentPayment({ student }: { student: StoredStudentProfile | null }) {
       <div>
         <h2 className="mb-2 px-1 text-sm font-semibold">Grille tarifaire</h2>
         <div className="space-y-2">
-          {PRICING.map((p) => (
-            <Card key={p.id} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{p.title}</p>
-                {p.badge && (
-                  <span className="mt-1 inline-block rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
-                    {p.badge}
-                  </span>
-                )}
-              </div>
-              <p className="text-base font-bold text-primary">{p.price} €</p>
-            </Card>
-          ))}
+          {(() => {
+            const grouped = new Map<number, typeof PRICING[number][]>();
+            PRICING.forEach((p) => {
+              const list = grouped.get(p.price) || [];
+              list.push(p);
+              grouped.set(p.price, list);
+            });
+            return Array.from(grouped.entries()).map(([price, items]) => (
+              <Card key={price} className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  {items.map((p) => (
+                    <div key={p.id} className={items.length > 1 ? "border-b border-border/60 py-1.5 last:border-b-0 last:pb-0 first:pt-0" : ""}>
+                      <p className="text-sm font-medium">{p.title}</p>
+                      {p.badge && (
+                        <span className="mt-0.5 inline-block rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                          {p.badge}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="shrink-0 text-base font-bold text-primary">{price} €</p>
+              </Card>
+            ));
+          })()}
         </div>
       </div>
     </div>
