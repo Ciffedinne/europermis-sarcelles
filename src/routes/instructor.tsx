@@ -123,7 +123,7 @@ function InstructorValidate({
         </div>
         <button
           type="button"
-          onClick={() => setLessonId(null)}
+          onClick={() => { setLessonId(null); onClose(); }}
           className="grid h-8 w-8 place-items-center rounded-full bg-secondary text-muted-foreground"
           aria-label="Fermer"
         >
