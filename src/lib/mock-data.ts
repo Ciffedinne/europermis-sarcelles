@@ -1,27 +1,49 @@
 export const SCHOOL = {
   name: "Euro-Permis Sarcelles",
+  tagline: "Ton permis sur mesure",
   phone: "01 34 29 01 54",
   phoneHref: "tel:+33134290154",
   address: "56-58 Avenue Paul Valéry, 95200 Sarcelles",
+  website: "https://europermis-sarcelles.fr",
   mapsHref:
     "https://www.google.com/maps/search/?api=1&query=56-58+Avenue+Paul+Val%C3%A9ry+95200+Sarcelles",
+  // Horaires bureau (accueil / secrétariat)
   hours: [
-    { day: "Lundi", time: "10:00 – 19:00" },
-    { day: "Mardi", time: "10:00 – 19:00" },
-    { day: "Mercredi", time: "10:00 – 19:00" },
-    { day: "Jeudi", time: "10:00 – 19:00" },
-    { day: "Vendredi", time: "10:00 – 19:00" },
-    { day: "Samedi", time: "10:00 – 17:00" },
+    { day: "Lundi", time: "15:00 – 19:00" },
+    { day: "Mardi", time: "10:00 – 13:00 · 15:00 – 19:00" },
+    { day: "Mercredi", time: "10:00 – 13:00 · 15:00 – 19:00" },
+    { day: "Jeudi", time: "10:00 – 13:00 · 15:00 – 19:00" },
+    { day: "Vendredi", time: "10:00 – 13:00 · 15:00 – 19:00" },
+    { day: "Samedi", time: "10:00 – 13:00" },
+    { day: "Dimanche", time: "Fermé" },
+  ],
+  // Horaires conduite (leçons sur véhicule)
+  drivingHours: [
+    { day: "Lundi – Vendredi", time: "09:00 – 20:00" },
+    { day: "Samedi", time: "08:00 – 13:00" },
     { day: "Dimanche", time: "Fermé" },
   ],
 };
 
 export const PRICING = [
-  { id: "b20", title: "Permis B Manuel — 20h", price: 999, badge: "Le plus choisi" },
-  { id: "b30", title: "Permis B Manuel — 30h", price: 1399 },
-  { id: "auto", title: "Permis B Automatique — 13h", price: 899 },
-  { id: "code", title: "Forfait Code en illimité", price: 199 },
-  { id: "extra", title: "Heure supplémentaire", price: 60 },
+  { id: "auto13", title: "Permis B Boîte Automatique — 13h", price: 749, badge: "À partir de" },
+  { id: "manuelle20", title: "Permis B Boîte Manuelle — 20h", price: 999, badge: "Le plus choisi" },
+  { id: "auto20", title: "Permis B Boîte Automatique — 20h", price: 1049 },
+  { id: "aac", title: "Formule AAC (Conduite accompagnée) — 20h", price: 1299 },
+  { id: "manuelle30", title: "Permis B Boîte Manuelle — 30h", price: 1499 },
+  { id: "auto30", title: "Permis B Boîte Automatique — 30h", price: 1549 },
+  { id: "codeacc", title: "Code de la route Accéléré — 21h", price: 299 },
+  { id: "passerelle", title: "Passerelle Auto → Manuelle — 7h", price: 499 },
+  { id: "postpermis", title: "Formule Post-Permis — 7h", price: 250 },
+  { id: "lecon", title: "Leçon de conduite (Manuelle ou Auto)", price: 60 },
+  { id: "evalSim", title: "Évaluation sur simulateur", price: 40 },
+  { id: "evalLigne", title: "Évaluation en ligne", price: 40 },
+  { id: "evalEns", title: "Évaluation avec enseignant", price: 60 },
+  { id: "codeLigne", title: "Code en ligne — 6 mois", price: 40 },
+  { id: "livreCode", title: "Livre de code", price: 15 },
+  { id: "fraisAdmin", title: "Frais administratifs", price: 150 },
+  { id: "fraisCPF", title: "Frais de gestion CPF", price: 300 },
+  { id: "examen", title: "Frais examen pratique", price: 60 },
 ];
 
 export const STUDENT = {
