@@ -1,16 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Home, ClipboardCheck, User, X, Check, MessageSquare } from "lucide-react";
+import {
+  Home,
+  ClipboardCheck,
+  User,
+  X,
+  Check,
+  MessageSquare,
+  ChevronsUpDown,
+  Search,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { INSTRUCTOR } from "@/lib/mock-data";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getStoredStudents, STUDENTS_STORAGE_KEY } from "@/lib/local-auth";
 import {
   addAppreciation,
