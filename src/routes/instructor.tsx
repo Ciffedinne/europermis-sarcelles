@@ -1,16 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Home, ClipboardCheck, User, X, Check, MessageSquare } from "lucide-react";
+import {
+  Home,
+  ClipboardCheck,
+  User,
+  X,
+  Check,
+  MessageSquare,
+  ChevronsUpDown,
+  Search,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { INSTRUCTOR } from "@/lib/mock-data";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getStoredStudents, STUDENTS_STORAGE_KEY } from "@/lib/local-auth";
 import {
   addAppreciation,
@@ -264,27 +267,11 @@ function InstructorAppreciations() {
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               Élève
             </label>
-            <Select
-              value={studentOptions.includes(studentName) ? studentName : undefined}
-              onValueChange={(v) => setStudentName(v)}
-            >
-              <SelectTrigger className="h-11 rounded-xl border-border bg-background text-sm">
-                <SelectValue placeholder="Sélectionnez un élève…" />
-              </SelectTrigger>
-              <SelectContent>
-                {studentOptions.length === 0 ? (
-                  <div className="px-2 py-3 text-xs text-muted-foreground">
-                    Aucun élève. Importez un fichier .txt côté admin.
-                  </div>
-                ) : (
-                  studentOptions.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <StudentCombobox
+              value={studentName}
+              options={studentOptions}
+              onChange={setStudentName}
+            />
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -370,5 +357,89 @@ function InstructorProfile() {
         </div>
       </div>
     </div>
+  );
+}
+
+function normalizeText(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function StudentCombobox({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = normalizeText(query.trim());
+    if (!q) return options;
+    return options.filter((o) => normalizeText(o).includes(q));
+  }, [options, query]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex h-11 w-full items-center justify-between rounded-xl border border-border bg-background px-3 text-sm outline-none transition focus:border-primary"
+        >
+          <span className={value ? "" : "text-muted-foreground"}>
+            {value || "Sélectionnez un élève…"}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="w-[var(--radix-popover-trigger-width)] p-0"
+      >
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher un élève…"
+            className="h-7 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          />
+        </div>
+        <div className="max-h-64 overflow-y-auto p-1">
+          {filtered.length === 0 ? (
+            <div className="px-2 py-6 text-center text-xs text-muted-foreground">
+              {options.length === 0
+                ? "Aucun élève. Importez un fichier .txt côté admin."
+                : "Aucun résultat."}
+            </div>
+          ) : (
+            filtered.map((s) => {
+              const selected = s === value;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => {
+                    onChange(s);
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className={`flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm transition ${
+                    selected ? "bg-primary/10 text-primary" : "hover:bg-secondary"
+                  }`}
+                >
+                  <span className="truncate">{s}</span>
+                  {selected && <Check className="h-4 w-4" />}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
