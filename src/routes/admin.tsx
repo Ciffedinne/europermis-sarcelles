@@ -411,15 +411,18 @@ function AdminStudents({
       );
     }
     const sorted = [...list];
+    const fullName = (s: ManagedStudent) =>
+      `${s.prenom ?? ""} ${s.nom ?? ""}`.trim().toLowerCase();
+    const opts = { sensitivity: "base", numeric: true } as const;
     if (sortKey === "nameAsc") {
-      sorted.sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+      sorted.sort((a, b) => fullName(a).localeCompare(fullName(b), "fr", opts));
     } else if (sortKey === "nameDesc") {
-      sorted.sort((a, b) => b.nom.localeCompare(a.nom, "fr"));
+      sorted.sort((a, b) => fullName(b).localeCompare(fullName(a), "fr", opts));
     } else if (sortKey === "city") {
       sorted.sort((a, b) => {
-        const ka = `${a.codePostal ?? ""} ${a.ville ?? a.lieuNaissance ?? ""}`;
-        const kb = `${b.codePostal ?? ""} ${b.ville ?? b.lieuNaissance ?? ""}`;
-        return ka.localeCompare(kb, "fr");
+        const ka = `${a.codePostal ?? ""} ${a.ville ?? a.lieuNaissance ?? ""}`.trim().toLowerCase();
+        const kb = `${b.codePostal ?? ""} ${b.ville ?? b.lieuNaissance ?? ""}`.trim().toLowerCase();
+        return ka.localeCompare(kb, "fr", opts);
       });
     } else {
       // Récents : les plus récemment ajoutés en haut (createdAt desc), seeds en dernier

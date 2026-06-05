@@ -1,9 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Home, ClipboardCheck, User, X, Check, MessageSquare } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { INSTRUCTOR } from "@/lib/mock-data";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getStoredStudents, STUDENTS_STORAGE_KEY } from "@/lib/local-auth";
 import {
   addAppreciation,
   formatShortDate,
@@ -195,9 +203,39 @@ function InstructorAppreciations() {
   const [comment, setComment] = useState("");
   const [saved, setSaved] = useState(false);
 
+  const [storedStudents, setStoredStudents] = useState(() =>
+    typeof window !== "undefined" ? getStoredStudents() : [],
+  );
+
   useEffect(() => {
     setList(getAppreciations());
+    const refresh = () => setStoredStudents(getStoredStudents());
+    refresh();
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key || e.key === STUDENTS_STORAGE_KEY) refresh();
+    };
+    const onFocus = () => refresh();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
+
+  // Liste fusionnée : élèves importés/stockés + planning du jour + historique des appréciations
+  const studentOptions = useMemo(() => {
+    const set = new Set<string>();
+    storedStudents.forEach((s) => {
+      const name = `${s.prenom ?? ""} ${s.nom ?? ""}`.trim();
+      if (name) set.add(name);
+    });
+    INSTRUCTOR.today.forEach((l) => l.student && set.add(l.student));
+    list.forEach((a) => a.studentName && set.add(a.studentName));
+    return Array.from(set).sort((a, b) =>
+      a.localeCompare(b, "fr", { sensitivity: "base" }),
+    );
+  }, [storedStudents, list]);
 
   const submit = () => {
     if (!studentName.trim() || !comment.trim()) return;
@@ -214,11 +252,6 @@ function InstructorAppreciations() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  // Unique students suggested from today's planning + history
-  const studentOptions = Array.from(
-    new Set([...INSTRUCTOR.today.map((l) => l.student), ...list.map((a) => a.studentName)]),
-  );
-
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-border bg-card p-4">
@@ -231,18 +264,27 @@ function InstructorAppreciations() {
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               Élève
             </label>
-            <input
-              list="instructor-students"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              placeholder="Nom de l'élève"
-              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-            />
-            <datalist id="instructor-students">
-              {studentOptions.map((s) => (
-                <option key={s} value={s} />
-              ))}
-            </datalist>
+            <Select
+              value={studentOptions.includes(studentName) ? studentName : undefined}
+              onValueChange={(v) => setStudentName(v)}
+            >
+              <SelectTrigger className="h-11 rounded-xl border-border bg-background text-sm">
+                <SelectValue placeholder="Sélectionnez un élève…" />
+              </SelectTrigger>
+              <SelectContent>
+                {studentOptions.length === 0 ? (
+                  <div className="px-2 py-3 text-xs text-muted-foreground">
+                    Aucun élève. Importez un fichier .txt côté admin.
+                  </div>
+                ) : (
+                  studentOptions.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
