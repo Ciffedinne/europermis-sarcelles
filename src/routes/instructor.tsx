@@ -267,27 +267,11 @@ function InstructorAppreciations() {
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               Élève
             </label>
-            <Select
-              value={studentOptions.includes(studentName) ? studentName : undefined}
-              onValueChange={(v) => setStudentName(v)}
-            >
-              <SelectTrigger className="h-11 rounded-xl border-border bg-background text-sm">
-                <SelectValue placeholder="Sélectionnez un élève…" />
-              </SelectTrigger>
-              <SelectContent>
-                {studentOptions.length === 0 ? (
-                  <div className="px-2 py-3 text-xs text-muted-foreground">
-                    Aucun élève. Importez un fichier .txt côté admin.
-                  </div>
-                ) : (
-                  studentOptions.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+            <StudentCombobox
+              value={studentName}
+              options={studentOptions}
+              onChange={setStudentName}
+            />
           </div>
           <div>
             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
