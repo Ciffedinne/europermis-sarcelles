@@ -815,16 +815,96 @@ function parseTxtTSV(text: string): ImportedStudent[] {
   return out;
 }
 
+// Parse JSON : tableau d'objets aux clés standardisées.
+function parseJsonStudents(text: string): ImportedStudent[] {
+  const data = JSON.parse(text);
+  const arr = Array.isArray(data) ? data : Array.isArray(data?.students) ? data.students : null;
+  if (!arr) throw new Error("JSON invalide : tableau d'élèves attendu.");
+  const out: ImportedStudent[] = [];
+  for (const r of arr) {
+    if (!r || typeof r !== "object") continue;
+    const nom = String(r.nom ?? r.lastname ?? "").trim();
+    const prenom = String(r.prenom ?? r.firstname ?? "").trim();
+    if (!nom && !prenom) continue;
+    out.push({
+      civilite: String(r.civilite ?? "—").trim() || "—",
+      nom, prenom,
+      dateNaissance: String(r.dateNaissance ?? r.birthdate ?? "").trim(),
+      lieuNaissance: String(r.lieuNaissance ?? "").trim(),
+      neph: String(r.neph ?? "").trim(),
+      adresse: String(r.adresse ?? "").trim(),
+      codePostal: String(r.codePostal ?? r.cp ?? "").trim(),
+      ville: String(r.ville ?? "").trim(),
+      pays: String(r.pays ?? "France").trim(),
+      telephone: String(r.telephone ?? r.tel ?? "").trim(),
+      email: String(r.email ?? "").trim(),
+      departementNaissance: String(r.departementNaissance ?? "").trim(),
+      paysNaissance: String(r.paysNaissance ?? "France").trim(),
+      datePremierPermis: String(r.datePremierPermis ?? "").trim(),
+    });
+  }
+  if (out.length === 0) throw new Error("Aucun élève exploitable dans le JSON.");
+  return out;
+}
+
+// Parse CSV simple (séparateur , ou ;), première ligne = en-tête.
+function parseCsvStudents(text: string): ImportedStudent[] {
+  const cleaned = text.replace(/\r/g, "");
+  const lines = cleaned.split("\n").filter((l) => l.trim().length > 0);
+  if (lines.length < 2) throw new Error("CSV vide ou sans données.");
+  const sep = (lines[0].match(/;/g)?.length ?? 0) > (lines[0].match(/,/g)?.length ?? 0) ? ";" : ",";
+  const headers = lines[0].split(sep).map((h) => h.trim().toLowerCase());
+  const idx = (name: string) => headers.indexOf(name);
+  const get = (cols: string[], name: string) => {
+    const i = idx(name);
+    return i >= 0 ? (cols[i] ?? "").trim() : "";
+  };
+  const out: ImportedStudent[] = [];
+  for (const line of lines.slice(1)) {
+    const cols = line.split(sep);
+    const nom = get(cols, "nom");
+    const prenom = get(cols, "prenom") || get(cols, "prénom");
+    if (!nom && !prenom) continue;
+    out.push({
+      civilite: get(cols, "civilite") || "—",
+      nom, prenom,
+      dateNaissance: get(cols, "datenaissance") || get(cols, "naissance"),
+      lieuNaissance: get(cols, "lieunaissance"),
+      neph: get(cols, "neph"),
+      adresse: get(cols, "adresse"),
+      codePostal: get(cols, "codepostal") || get(cols, "cp"),
+      ville: get(cols, "ville"),
+      pays: get(cols, "pays") || "France",
+      telephone: get(cols, "telephone") || get(cols, "téléphone") || get(cols, "tel"),
+      email: get(cols, "email"),
+      departementNaissance: get(cols, "departementnaissance"),
+      paysNaissance: get(cols, "paysnaissance") || "France",
+      datePremierPermis: get(cols, "datepremierpermis"),
+    });
+  }
+  if (out.length === 0) throw new Error("Aucune ligne exploitable dans le CSV.");
+  return out;
+}
+
+type ImportMode = "txt" | "json" | "rapido";
+
 function AdminImport({
   onValidate,
 }: {
   onValidate: (rows: ImportedStudent[]) => void;
 }) {
+  const [mode, setMode] = useState<ImportMode>("txt");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [students, setStudents] = useState<ImportedStudent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
+
+  // Rapido state
+  const [rapidoKey, setRapidoKey] = useState("");
+  const [rapidoEtab, setRapidoEtab] = useState("");
+  const [rapidoEnabled, setRapidoEnabled] = useState(false);
+  const [rapidoLoading, setRapidoLoading] = useState(false);
 
   const sortedPreview = useMemo(() => students, [students]);
 
@@ -836,17 +916,27 @@ function AdminImport({
 
   const handleFile = (file: File) => {
     setError(null);
-    if (!file.name.toLowerCase().endsWith(".txt")) {
-      setError("Format invalide : seuls les fichiers .txt sont acceptés.");
-      setFileName(file.name);
-      setStudents([]);
-      return;
+    const name = file.name.toLowerCase();
+    const isTxt = name.endsWith(".txt");
+    const isJson = name.endsWith(".json");
+    const isCsv = name.endsWith(".csv");
+    if (mode === "txt" && !isTxt) {
+      setError("Format invalide : fichier .txt requis.");
+      setFileName(file.name); setStudents([]); return;
+    }
+    if (mode === "json" && !isJson && !isCsv) {
+      setError("Format invalide : fichier .json ou .csv requis.");
+      setFileName(file.name); setStudents([]); return;
     }
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const text = String(e.target?.result ?? "");
-        const parsed = parseTxtTSV(text);
+        const parsed = isJson
+          ? parseJsonStudents(text)
+          : isCsv
+            ? parseCsvStudents(text)
+            : parseTxtTSV(text);
         setStudents(parsed);
         setFileName(file.name);
       } catch (err) {
@@ -867,7 +957,7 @@ function AdminImport({
 
   const sortByDate = () => {
     if (students.length === 0) {
-      toast.error("Sélectionnez d'abord un fichier .txt.");
+      toast.error("Sélectionnez d'abord un fichier.");
       return;
     }
     const dir = sortAsc ? 1 : -1;
@@ -880,134 +970,211 @@ function AdminImport({
     toast(`Tri par date de naissance (${sortAsc ? "croissant" : "décroissant"}).`);
   };
 
+  const syncRapido = async () => {
+    if (!rapidoEnabled) {
+      toast.error("Activez d'abord la connexion API Rapido.");
+      return;
+    }
+    setRapidoLoading(true);
+    try {
+      const { fetchRapidoStudents } = await import("@/lib/rapido");
+      const list = await fetchRapidoStudents({ apiKey: rapidoKey, etablissementId: rapidoEtab });
+      onValidate(list);
+      toast.success(`${list.length} élève${list.length > 1 ? "s" : ""} synchronisé${list.length > 1 ? "s" : ""} avec succès depuis Rapido`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Échec de la synchronisation Rapido.");
+    } finally {
+      setRapidoLoading(false);
+    }
+  };
+
   const status = error
-    ? {
-        icon: <XCircle className="h-4 w-4" />,
-        text: error,
-        cls: "border-destructive/40 bg-destructive/10 text-destructive",
-      }
+    ? { icon: <XCircle className="h-4 w-4" />, text: error, cls: "border-destructive/40 bg-destructive/10 text-destructive" }
     : students.length > 0
-      ? {
-          icon: <CheckCircle2 className="h-4 w-4" />,
-          text: `Fichier chargé : ${students.length} élève${students.length > 1 ? "s" : ""} prêt${students.length > 1 ? "s" : ""} à importer`,
-          cls: "border-primary/40 bg-primary/10 text-primary",
-        }
-      : {
-          icon: <FileText className="h-4 w-4" />,
-          text: fileName ?? "Aucun fichier chargé",
-          cls: "border-border bg-secondary text-muted-foreground",
-        };
+      ? { icon: <CheckCircle2 className="h-4 w-4" />, text: `Fichier chargé : ${students.length} élève${students.length > 1 ? "s" : ""} prêt${students.length > 1 ? "s" : ""} à importer`, cls: "border-primary/40 bg-primary/10 text-primary" }
+      : { icon: <FileText className="h-4 w-4" />, text: fileName ?? "Aucun fichier chargé", cls: "border-border bg-secondary text-muted-foreground" };
+
+  const acceptAttr = mode === "txt" ? ".txt,text/plain" : ".json,.csv,application/json,text/csv";
+
+  const tabs: { id: ImportMode; label: string; icon: typeof FileText }[] = [
+    { id: "txt", label: "EXPORT.TXT", icon: FileText },
+    { id: "json", label: "JSON / CSV", icon: FileSpreadsheet },
+    { id: "rapido", label: "API Rapido", icon: Database },
+  ];
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-accent/40 bg-gradient-to-br from-accent/15 to-card p-4">
-        <p className="text-xs uppercase tracking-wider text-accent">Import rapide</p>
+        <p className="text-xs uppercase tracking-wider text-accent">Sources d'importation</p>
         <p className="mt-1 text-sm">
-          Importez un export <code>.txt</code> (tabulations) — chaque élève sera ajouté
-          à <strong>Gestion élèves</strong> avec un compte utilisateur généré.
+          Trois méthodes alimentent la même base élèves (persistée localement).
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <Database className="h-5 w-5" />
-          </span>
-          <div className="text-xs">
-            <p className="font-semibold">Option A — Synchronisation API</p>
-            <p className="text-muted-foreground">Temps réel (à venir).</p>
+      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-1">
+        {tabs.map((t) => {
+          const Icon = t.icon;
+          const active = mode === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => { setMode(t.id); reset(); }}
+              className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition ${active ? "bg-primary text-primary-foreground shadow" : "text-muted-foreground hover:bg-secondary"}`}
+            >
+              <Icon className="h-4 w-4" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {mode !== "rapido" && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={acceptAttr}
+            className="sr-only"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleFile(f);
+              e.target.value = "";
+            }}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+            >
+              <FileUp className="h-4 w-4" />
+              {mode === "txt" ? "📁 Sélectionner un fichier .txt" : "📁 Sélectionner un fichier .json / .csv"}
+            </button>
+            <button
+              type="button"
+              onClick={launchImport}
+              disabled={students.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Upload className="h-4 w-4" />
+              Lancer l'import
+            </button>
+            <button
+              type="button"
+              onClick={sortByDate}
+              disabled={students.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-semibold transition hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <CalendarClock className="h-4 w-4" />
+              Date
+            </button>
           </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-accent/40 bg-accent/10 p-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-accent text-accent-foreground">
-            <FileSpreadsheet className="h-5 w-5" />
-          </span>
-          <div className="text-xs">
-            <p className="font-semibold">Option B — Import .txt de secours</p>
-            <p className="text-muted-foreground">Fichier tabulé (TSV).</p>
+
+          <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${status.cls}`}>
+            {status.icon}
+            <span className="truncate">{status.text}</span>
           </div>
-        </div>
-      </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".txt,text/plain"
-        className="sr-only"
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) handleFile(f);
-          e.target.value = "";
-        }}
-      />
-
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
-        >
-          <FileUp className="h-4 w-4" />
-          📁 Sélectionner un fichier .txt
-        </button>
-        <button
-          type="button"
-          onClick={launchImport}
-          disabled={students.length === 0}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Upload className="h-4 w-4" />
-          Lancer l'import
-        </button>
-        <button
-          type="button"
-          onClick={sortByDate}
-          disabled={students.length === 0}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-semibold transition hover:bg-secondary/70 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <CalendarClock className="h-4 w-4" />
-          Date
-        </button>
-      </div>
-
-      <div
-        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${status.cls}`}
-      >
-        {status.icon}
-        <span className="truncate">{status.text}</span>
-      </div>
-
-      {sortedPreview.length > 0 && (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Aperçu avant import ({sortedPreview.length})
+          {mode === "json" && students.length === 0 && !error && (
+            <p className="rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+              Clés JSON attendues : <code>nom</code>, <code>prenom</code>, <code>neph</code>, <code>telephone</code>, <code>email</code>, <code>adresse</code>, <code>ville</code>, <code>codePostal</code>, <code>dateNaissance</code>…
             </p>
+          )}
+
+          {sortedPreview.length > 0 && (
+            <div className="overflow-hidden rounded-2xl border border-border bg-card">
+              <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Aperçu avant import ({sortedPreview.length})
+                </p>
+              </div>
+              <div className="max-h-72 overflow-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-secondary text-left text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Civ.</th>
+                      <th className="px-3 py-2 font-medium">Nom</th>
+                      <th className="px-3 py-2 font-medium">Prénom</th>
+                      <th className="px-3 py-2 font-medium">Naissance</th>
+                      <th className="px-3 py-2 font-medium">NEPH</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedPreview.map((s, i) => (
+                      <tr key={`${s.neph}-${i}`} className="border-t border-border">
+                        <td className="px-3 py-2">{s.civilite}</td>
+                        <td className="px-3 py-2 font-semibold">{s.nom}</td>
+                        <td className="px-3 py-2">{s.prenom}</td>
+                        <td className="px-3 py-2">{s.dateNaissance}</td>
+                        <td className="px-3 py-2 font-mono text-[11px]">{s.neph}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {mode === "rapido" && (
+        <div className="space-y-3 rounded-2xl border border-primary/30 bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Connexion Synchronisée API Rapido</p>
+              <p className="text-xs text-muted-foreground">Codes Rousseau · synchronisation des comptes élèves</p>
+            </div>
+            <label className="inline-flex cursor-pointer items-center gap-2">
+              <span className="text-xs text-muted-foreground">{rapidoEnabled ? "Activé" : "Inactif"}</span>
+              <input
+                type="checkbox"
+                checked={rapidoEnabled}
+                onChange={(e) => setRapidoEnabled(e.target.checked)}
+                className="h-5 w-9 cursor-pointer appearance-none rounded-full bg-secondary transition checked:bg-primary"
+              />
+            </label>
           </div>
-          <div className="max-h-72 overflow-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-secondary text-left text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Civ.</th>
-                  <th className="px-3 py-2 font-medium">Nom</th>
-                  <th className="px-3 py-2 font-medium">Prénom</th>
-                  <th className="px-3 py-2 font-medium">Naissance</th>
-                  <th className="px-3 py-2 font-medium">NEPH</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedPreview.map((s, i) => (
-                  <tr key={`${s.neph}-${i}`} className="border-t border-border">
-                    <td className="px-3 py-2">{s.civilite}</td>
-                    <td className="px-3 py-2 font-semibold">{s.nom}</td>
-                    <td className="px-3 py-2">{s.prenom}</td>
-                    <td className="px-3 py-2">{s.dateNaissance}</td>
-                    <td className="px-3 py-2 font-mono text-[11px]">{s.neph}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-xs">
+              <span className="mb-1 block font-semibold text-muted-foreground">Clé API Rapido</span>
+              <input
+                type="text"
+                value={rapidoKey}
+                onChange={(e) => setRapidoKey(e.target.value)}
+                disabled={!rapidoEnabled}
+                placeholder="rk_xxx..."
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+              />
+            </label>
+            <label className="block text-xs">
+              <span className="mb-1 block font-semibold text-muted-foreground">Identifiant Établissement</span>
+              <input
+                type="text"
+                value={rapidoEtab}
+                onChange={(e) => setRapidoEtab(e.target.value)}
+                disabled={!rapidoEnabled}
+                placeholder="EP-SARCELLES-001"
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+              />
+            </label>
           </div>
+
+          <button
+            type="button"
+            onClick={syncRapido}
+            disabled={!rapidoEnabled || rapidoLoading || !rapidoKey.trim() || !rapidoEtab.trim()}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <RotateCcw className={`h-4 w-4 ${rapidoLoading ? "animate-spin" : ""}`} />
+            {rapidoLoading ? "Synchronisation…" : "🔄 Synchroniser via l'API Rapido"}
+          </button>
+
+          <p className="rounded-xl border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+            Les élèves récupérés sont créés avec un profil vierge, un identifiant <code>prenom.nom</code> et un mot de passe temporaire basé sur le NEPH. Ils apparaissent immédiatement dans <strong>Gestion élèves</strong>.
+          </p>
         </div>
       )}
     </div>
