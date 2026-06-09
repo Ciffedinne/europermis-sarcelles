@@ -9,6 +9,20 @@ import {
   MessageSquare,
   ChevronsUpDown,
   Search,
+  Clock,
+  Calendar,
+  Car,
+  TrendingUp,
+  Award,
+  Phone,
+  Mail,
+  MapPin,
+  Users,
+  Star,
+  Sparkles,
+  CheckCircle2,
+  CircleDashed,
+  PlayCircle,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
