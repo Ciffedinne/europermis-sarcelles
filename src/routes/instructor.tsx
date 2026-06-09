@@ -9,6 +9,20 @@ import {
   MessageSquare,
   ChevronsUpDown,
   Search,
+  Clock,
+  Calendar,
+  Car,
+  TrendingUp,
+  Award,
+  Phone,
+  Mail,
+  MapPin,
+  Users,
+  Star,
+  Sparkles,
+  CheckCircle2,
+  CircleDashed,
+  PlayCircle,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
@@ -56,43 +70,197 @@ function InstructorApp() {
 
 function statusBadge(s: string) {
   if (s === "done")
-    return <span className="rounded-full bg-success/15 px-2 py-1 text-[10px] font-semibold uppercase text-success">Terminé</span>;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-success">
+        <CheckCircle2 className="h-3 w-3" /> Terminé
+      </span>
+    );
   if (s === "current")
-    return <span className="rounded-full bg-primary/20 px-2 py-1 text-[10px] font-semibold uppercase text-primary">En cours</span>;
-  return <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold uppercase text-muted-foreground">À venir</span>;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-accent/20 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-accent">
+        <PlayCircle className="h-3 w-3" /> En cours
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <CircleDashed className="h-3 w-3" /> À venir
+    </span>
+  );
 }
 
 type LessonItem = (typeof INSTRUCTOR.today)[number];
 
 function InstructorHome() {
   const [openLesson, setOpenLesson] = useState<LessonItem | null>(null);
+
+  const stats = useMemo(() => {
+    const done = INSTRUCTOR.today.filter((l) => l.status === "done").length;
+    const current = INSTRUCTOR.today.filter((l) => l.status === "current").length;
+    const upcoming = INSTRUCTOR.today.filter((l) => l.status === "upcoming").length;
+    const hours = INSTRUCTOR.today.reduce((acc, l) => {
+      const m = l.time.match(/(\d{2}):\d{2}\s*[–-]\s*(\d{2}):\d{2}/);
+      return acc + (m ? Number(m[2]) - Number(m[1]) : 0);
+    }, 0);
+    return { done, current, upcoming, hours, total: INSTRUCTOR.today.length };
+  }, []);
+
+  const nextLesson =
+    INSTRUCTOR.today.find((l) => l.status === "current") ??
+    INSTRUCTOR.today.find((l) => l.status === "upcoming");
+
+  const today = new Date().toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+
+  const progress = stats.total ? Math.round((stats.done / stats.total) * 100) : 0;
+
   return (
-    <div className="space-y-3">
-      <div className="rounded-2xl border border-border bg-card p-4">
-        <p className="text-xs uppercase tracking-wider text-primary">Aujourd'hui</p>
-        <p className="mt-1 text-base font-semibold">{INSTRUCTOR.today.length} cours planifiés</p>
+    <div className="space-y-4">
+      {/* Hero du jour */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/25 via-card to-card p-5 shadow-lg">
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -bottom-12 -left-8 h-32 w-32 rounded-full bg-accent/15 blur-3xl" />
+        <div className="relative">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-primary">
+                <Sparkles className="h-3 w-3" /> Aujourd'hui
+              </p>
+              <p className="mt-1 text-lg font-bold capitalize">{today}</p>
+            </div>
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/20 text-primary">
+              <Calendar className="h-6 w-6" />
+            </div>
+          </div>
+
+          {/* Progression de la journée */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+              <span>Progression journée</span>
+              <span className="font-semibold text-foreground">{progress}%</span>
+            </div>
+            <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Stats grid */}
+          <div className="mt-4 grid grid-cols-4 gap-2">
+            <StatPill icon={<Car className="h-3.5 w-3.5" />} label="Cours" value={stats.total} />
+            <StatPill icon={<Clock className="h-3.5 w-3.5" />} label="Heures" value={`${stats.hours}h`} />
+            <StatPill icon={<CheckCircle2 className="h-3.5 w-3.5" />} label="Faits" value={stats.done} tone="success" />
+            <StatPill icon={<CircleDashed className="h-3.5 w-3.5" />} label="Restant" value={stats.current + stats.upcoming} tone="accent" />
+          </div>
+        </div>
       </div>
-      {INSTRUCTOR.today.map((l) => (
-        <button
-          key={l.id}
-          type="button"
-          onClick={() => setOpenLesson(l)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
-        >
-          <div className="grid w-16 shrink-0 place-items-center rounded-xl bg-secondary py-2">
-            <p className="text-[10px] uppercase text-muted-foreground">heure</p>
-            <p className="text-sm font-bold text-primary">{l.time.split(" ")[0]}</p>
+
+      {/* Prochain cours */}
+      {nextLesson && (
+        <div className="rounded-2xl border border-accent/30 bg-accent/5 p-4">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent/20 text-accent">
+              <PlayCircle className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">
+                {nextLesson.status === "current" ? "En cours" : "Prochain cours"}
+              </p>
+              <p className="text-sm font-semibold">{nextLesson.student}</p>
+              <p className="text-xs text-muted-foreground">{nextLesson.time} · {nextLesson.type}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpenLesson(nextLesson)}
+              className="rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground"
+            >
+              Ouvrir
+            </button>
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-semibold">{l.student}</p>
-            <p className="text-xs text-muted-foreground">{l.type} · {l.time}</p>
-          </div>
-          {statusBadge(l.status)}
-        </button>
-      ))}
+        </div>
+      )}
+
+      {/* Planning timeline */}
+      <div>
+        <div className="mb-2 flex items-center justify-between px-1">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Planning du jour
+          </h2>
+          <span className="text-[11px] text-muted-foreground">{stats.total} cours</span>
+        </div>
+        <ol className="relative space-y-2 pl-4 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-px before:bg-border">
+          {INSTRUCTOR.today.map((l) => {
+            const dotTone =
+              l.status === "done"
+                ? "bg-success border-success"
+                : l.status === "current"
+                  ? "bg-accent border-accent ring-4 ring-accent/20"
+                  : "bg-card border-border";
+            return (
+              <li key={l.id} className="relative">
+                <span
+                  className={`absolute -left-[14px] top-5 h-3 w-3 rounded-full border-2 ${dotTone}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setOpenLesson(l)}
+                  className="group flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/60 hover:shadow-md"
+                >
+                  <div className="grid w-16 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-secondary to-secondary/40 py-2">
+                    <p className="text-[9px] uppercase tracking-wider text-muted-foreground">heure</p>
+                    <p className="text-sm font-bold text-primary">{l.time.split(" ")[0]}</p>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-semibold">{l.student}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Car className="h-3 w-3" />
+                      <span className="truncate">{l.type}</span>
+                      <span className="mx-1 opacity-50">·</span>
+                      <Clock className="h-3 w-3" />
+                      <span>{l.time}</span>
+                    </p>
+                  </div>
+                  {statusBadge(l.status)}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
       {openLesson && (
         <LessonValidationModal lesson={openLesson} onClose={() => setOpenLesson(null)} />
       )}
+    </div>
+  );
+}
+
+function StatPill({
+  icon,
+  label,
+  value,
+  tone = "primary",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  tone?: "primary" | "success" | "accent";
+}) {
+  const toneClass =
+    tone === "success"
+      ? "text-success"
+      : tone === "accent"
+        ? "text-accent"
+        : "text-primary";
+  return (
+    <div className="rounded-xl bg-background/40 px-2 py-2 backdrop-blur">
+      <div className={`flex items-center gap-1 ${toneClass}`}>{icon}</div>
+      <p className="mt-1 text-base font-bold leading-none">{value}</p>
+      <p className="mt-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -344,19 +512,176 @@ function shortName(full: string) {
 }
 
 function InstructorProfile() {
+  const initials = INSTRUCTOR.fullName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const specialties = [
+    "Boîte manuelle",
+    "Boîte auto",
+    "Conduite accompagnée",
+    "Examen blanc",
+    "Conduite de nuit",
+    "Autoroute",
+  ];
+
+  const reviews = [
+    { name: "Léa M.", note: 5, text: "Très pédagogue, met en confiance dès la première leçon." },
+    { name: "Hugo P.", note: 5, text: "Explications claires, j'ai progressé très vite." },
+    { name: "Sara El M.", note: 4, text: "Bons conseils pour l'examen, merci !" },
+  ];
+
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-3">
-        <div className="grid h-14 w-14 place-items-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-          KB
-        </div>
-        <div>
-          <p className="text-base font-semibold">{INSTRUCTOR.fullName}</p>
-          <p className="text-xs text-muted-foreground">@{INSTRUCTOR.username}</p>
-          <p className="text-xs text-muted-foreground">Moniteur diplômé — BEPECASER</p>
+    <div className="space-y-4">
+      {/* Carte identité */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+        <div className="h-20 bg-gradient-to-br from-primary via-primary/60 to-accent" />
+        <div className="px-5 pb-5">
+          <div className="-mt-10 flex items-end gap-4">
+            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl border-4 border-card bg-primary text-2xl font-bold text-primary-foreground shadow-lg">
+              {initials}
+            </div>
+            <div className="pb-1">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-success">
+                <CheckCircle2 className="h-3 w-3" /> Actif
+              </span>
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-lg font-bold">{INSTRUCTOR.fullName}</p>
+            <p className="text-xs text-muted-foreground">@{INSTRUCTOR.username}</p>
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <Award className="h-3.5 w-3.5 text-accent" />
+              Moniteur diplômé — BEPECASER
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-1.5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star
+                key={i}
+                className={`h-4 w-4 ${i <= 4 ? "fill-accent text-accent" : "fill-accent/60 text-accent"}`}
+              />
+            ))}
+            <span className="ml-1 text-sm font-semibold">4.9</span>
+            <span className="text-xs text-muted-foreground">/ 5 · 87 avis</span>
+          </div>
         </div>
       </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        <ProfileStat icon={<Users className="h-4 w-4" />} value="42" label="Élèves suivis" />
+        <ProfileStat icon={<Clock className="h-4 w-4" />} value="1 248h" label="Heures données" tone="accent" />
+        <ProfileStat icon={<TrendingUp className="h-4 w-4" />} value="91%" label="Réussite" tone="success" />
+      </div>
+
+      {/* Coordonnées */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Coordonnées
+        </h2>
+        <ul className="space-y-2.5">
+          <ContactRow icon={<Phone className="h-4 w-4" />} label="Téléphone" value="06 12 34 56 78" />
+          <ContactRow
+            icon={<Mail className="h-4 w-4" />}
+            label="Email"
+            value={`${INSTRUCTOR.username}@europermis-sarcelles.fr`}
+          />
+          <ContactRow
+            icon={<MapPin className="h-4 w-4" />}
+            label="Agence"
+            value="Euro-Permis Sarcelles"
+          />
+        </ul>
+      </div>
+
+      {/* Spécialités */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-primary" /> Spécialités
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {specialties.map((s) => (
+            <span
+              key={s}
+              className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Avis récents */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <MessageSquare className="h-3.5 w-3.5 text-primary" /> Derniers avis élèves
+        </h2>
+        <ul className="space-y-2.5">
+          {reviews.map((r) => (
+            <li key={r.name} className="rounded-xl bg-secondary p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{r.name}</p>
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: r.note }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-accent text-accent" />
+                  ))}
+                </div>
+              </div>
+              <p className="mt-1 text-xs italic text-foreground/85">« {r.text} »</p>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
+  );
+}
+
+function ProfileStat({
+  icon,
+  value,
+  label,
+  tone = "primary",
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+  tone?: "primary" | "success" | "accent";
+}) {
+  const toneClass =
+    tone === "success" ? "text-success" : tone === "accent" ? "text-accent" : "text-primary";
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3">
+      <div className={`flex items-center gap-1 ${toneClass}`}>{icon}</div>
+      <p className="mt-2 text-lg font-bold leading-none">{value}</p>
+      <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function ContactRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <li className="flex items-center gap-3">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="truncate text-sm font-medium">{value}</p>
+      </div>
+    </li>
   );
 }
 
