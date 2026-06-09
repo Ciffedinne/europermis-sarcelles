@@ -512,19 +512,176 @@ function shortName(full: string) {
 }
 
 function InstructorProfile() {
+  const initials = INSTRUCTOR.fullName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  const specialties = [
+    "Boîte manuelle",
+    "Boîte auto",
+    "Conduite accompagnée",
+    "Examen blanc",
+    "Conduite de nuit",
+    "Autoroute",
+  ];
+
+  const reviews = [
+    { name: "Léa M.", note: 5, text: "Très pédagogue, met en confiance dès la première leçon." },
+    { name: "Hugo P.", note: 5, text: "Explications claires, j'ai progressé très vite." },
+    { name: "Sara El M.", note: 4, text: "Bons conseils pour l'examen, merci !" },
+  ];
+
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <div className="flex items-center gap-3">
-        <div className="grid h-14 w-14 place-items-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-          KB
-        </div>
-        <div>
-          <p className="text-base font-semibold">{INSTRUCTOR.fullName}</p>
-          <p className="text-xs text-muted-foreground">@{INSTRUCTOR.username}</p>
-          <p className="text-xs text-muted-foreground">Moniteur diplômé — BEPECASER</p>
+    <div className="space-y-4">
+      {/* Carte identité */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
+        <div className="h-20 bg-gradient-to-br from-primary via-primary/60 to-accent" />
+        <div className="px-5 pb-5">
+          <div className="-mt-10 flex items-end gap-4">
+            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-2xl border-4 border-card bg-primary text-2xl font-bold text-primary-foreground shadow-lg">
+              {initials}
+            </div>
+            <div className="pb-1">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-success">
+                <CheckCircle2 className="h-3 w-3" /> Actif
+              </span>
+            </div>
+          </div>
+          <div className="mt-3">
+            <p className="text-lg font-bold">{INSTRUCTOR.fullName}</p>
+            <p className="text-xs text-muted-foreground">@{INSTRUCTOR.username}</p>
+            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+              <Award className="h-3.5 w-3.5 text-accent" />
+              Moniteur diplômé — BEPECASER
+            </p>
+          </div>
+
+          <div className="mt-4 flex items-center gap-1.5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star
+                key={i}
+                className={`h-4 w-4 ${i <= 4 ? "fill-accent text-accent" : "fill-accent/60 text-accent"}`}
+              />
+            ))}
+            <span className="ml-1 text-sm font-semibold">4.9</span>
+            <span className="text-xs text-muted-foreground">/ 5 · 87 avis</span>
+          </div>
         </div>
       </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        <ProfileStat icon={<Users className="h-4 w-4" />} value="42" label="Élèves suivis" />
+        <ProfileStat icon={<Clock className="h-4 w-4" />} value="1 248h" label="Heures données" tone="accent" />
+        <ProfileStat icon={<TrendingUp className="h-4 w-4" />} value="91%" label="Réussite" tone="success" />
+      </div>
+
+      {/* Coordonnées */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Coordonnées
+        </h2>
+        <ul className="space-y-2.5">
+          <ContactRow icon={<Phone className="h-4 w-4" />} label="Téléphone" value="06 12 34 56 78" />
+          <ContactRow
+            icon={<Mail className="h-4 w-4" />}
+            label="Email"
+            value={`${INSTRUCTOR.username}@europermis-sarcelles.fr`}
+          />
+          <ContactRow
+            icon={<MapPin className="h-4 w-4" />}
+            label="Agence"
+            value="Euro-Permis Sarcelles"
+          />
+        </ul>
+      </div>
+
+      {/* Spécialités */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Sparkles className="h-3.5 w-3.5 text-primary" /> Spécialités
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {specialties.map((s) => (
+            <span
+              key={s}
+              className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary"
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Avis récents */}
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <MessageSquare className="h-3.5 w-3.5 text-primary" /> Derniers avis élèves
+        </h2>
+        <ul className="space-y-2.5">
+          {reviews.map((r) => (
+            <li key={r.name} className="rounded-xl bg-secondary p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{r.name}</p>
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: r.note }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-accent text-accent" />
+                  ))}
+                </div>
+              </div>
+              <p className="mt-1 text-xs italic text-foreground/85">« {r.text} »</p>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
+  );
+}
+
+function ProfileStat({
+  icon,
+  value,
+  label,
+  tone = "primary",
+}: {
+  icon: React.ReactNode;
+  value: string;
+  label: string;
+  tone?: "primary" | "success" | "accent";
+}) {
+  const toneClass =
+    tone === "success" ? "text-success" : tone === "accent" ? "text-accent" : "text-primary";
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3">
+      <div className={`flex items-center gap-1 ${toneClass}`}>{icon}</div>
+      <p className="mt-2 text-lg font-bold leading-none">{value}</p>
+      <p className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
+function ContactRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <li className="flex items-center gap-3">
+      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="truncate text-sm font-medium">{value}</p>
+      </div>
+    </li>
   );
 }
 
