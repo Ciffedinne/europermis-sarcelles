@@ -23,6 +23,11 @@ import { getAppreciationsForStudent } from "@/lib/appreciations";
 
 export const Route = createFileRoute("/student")({
   head: () => ({ meta: [{ title: "Espace Élève — Euro-Permis Sarcelles" }] }),
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const session = getActiveSession();
+    if (!session || session.role !== "student") throw redirect({ to: "/" });
+  },
   component: StudentApp,
 });
 
