@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { GraduationCap, UserCog, ShieldCheck, Car } from "lucide-react";
+import { GraduationCap, UserCog, ShieldCheck } from "lucide-react";
+import logoAsset from "@/assets/logo-blanc.webp.asset.json";
 import {
   authenticateLocalUser,
   setActiveSession,
