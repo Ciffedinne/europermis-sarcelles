@@ -60,7 +60,7 @@
   --success-foreground: oklch(0.10 0.02 275);
   --border: oklch(0.32 0.04 275);
   --input: oklch(0.30 0.04 275);
-  --ring: oklch(0.62 0.12 180);
+  --ring: oklch(0.68 0.17 150);
 }
 
 .dark {
