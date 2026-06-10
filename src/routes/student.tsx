@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   Home,
@@ -18,11 +18,16 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { SCHOOL, STUDENT, PRICING } from "@/lib/mock-data";
-import { getActiveStudentProfile, type StoredStudentProfile } from "@/lib/local-auth";
+import { getActiveSession, getActiveStudentProfile, type StoredStudentProfile } from "@/lib/local-auth";
 import { getAppreciationsForStudent } from "@/lib/appreciations";
 
 export const Route = createFileRoute("/student")({
   head: () => ({ meta: [{ title: "Espace Élève — Euro-Permis Sarcelles" }] }),
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const session = getActiveSession();
+    if (!session || session.role !== "student") throw redirect({ to: "/" });
+  },
   component: StudentApp,
 });
 

@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { getActiveSession } from "@/lib/local-auth";
 import { useEffect, useMemo, useState } from "react";
 import {
   Home,
@@ -38,6 +39,11 @@ import {
 
 export const Route = createFileRoute("/instructor")({
   head: () => ({ meta: [{ title: "Espace Moniteur — Euro-Permis Sarcelles" }] }),
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const session = getActiveSession();
+    if (!session || session.role !== "instructor") throw redirect({ to: "/" });
+  },
   component: InstructorApp,
 });
 

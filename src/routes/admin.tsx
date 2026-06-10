@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { getActiveSession } from "@/lib/local-auth";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -50,6 +51,11 @@ function isActiveStudent(s: StoredStudentProfile) {
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Espace Admin — Euro-Permis Sarcelles" }] }),
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const session = getActiveSession();
+    if (!session || session.role !== "admin") throw redirect({ to: "/" });
+  },
   component: AdminApp,
 });
 
