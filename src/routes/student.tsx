@@ -18,7 +18,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { BottomNav, type TabItem } from "@/components/BottomNav";
 import { SCHOOL, STUDENT, PRICING } from "@/lib/mock-data";
-import { getActiveStudentProfile, type StoredStudentProfile } from "@/lib/local-auth";
+import { getActiveSession, getActiveStudentProfile, type StoredStudentProfile } from "@/lib/local-auth";
 import { getAppreciationsForStudent } from "@/lib/appreciations";
 
 export const Route = createFileRoute("/student")({
