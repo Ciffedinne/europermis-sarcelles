@@ -168,6 +168,18 @@ export function startDemoSession(role: MockRole) {
   if (user) setActiveSession(user);
 }
 
+export type ActiveSession = {
+  role?: MockRole;
+  username?: string;
+  displayName?: string;
+  studentId?: string;
+  authenticatedAt?: string;
+};
+
+export function getActiveSession(): ActiveSession | null {
+  return readJson<ActiveSession | null>(ACTIVE_AUTH_STORAGE_KEY, null);
+}
+
 export function getActiveStudentProfile() {
   const session = readJson<{ role?: MockRole; username?: string; studentId?: string } | null>(
     ACTIVE_AUTH_STORAGE_KEY,
