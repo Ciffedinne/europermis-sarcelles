@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { getActiveSession } from "@/lib/local-auth";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
