@@ -1,13 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { GraduationCap, UserCog, ShieldCheck } from "lucide-react";
+import { GraduationCap, UserCog, ShieldCheck, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import logoAsset from "@/assets/logo-blanc.webp.asset.json";
-import {
-  authenticateLocalUser,
-  setActiveSession,
-  startDemoSession,
-  type MockRole,
-} from "@/lib/local-auth";
+import { type MockRole } from "@/lib/local-auth";
+import { signInWithCredentials } from "@/lib/supabase-auth";
+import { seedDemoAccounts, DEMO_ACCOUNTS } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,11 +26,44 @@ function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   const goToRole = (role: MockRole) => {
     if (role === "admin") navigate({ to: "/admin" });
     else if (role === "instructor") navigate({ to: "/instructor" });
     else navigate({ to: "/student" });
+  };
+
+  const handleSignIn = async (u: string, p: string) => {
+    setLoading(true);
+    setError(null);
+    const res = await signInWithCredentials(u, p);
+    setLoading(false);
+    if ("error" in res) {
+      setError(res.error);
+      return;
+    }
+    goToRole(res.role);
+  };
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    try {
+      await seedDemoAccounts();
+      toast.success("Comptes démo initialisés. Vous pouvez maintenant vous connecter.");
+    } catch (e) {
+      toast.error("Échec de l'initialisation des comptes démo.");
+      console.error(e);
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const demoLogin = (email: string) => {
+    const acc = DEMO_ACCOUNTS.find((a) => a.email === email);
+    if (!acc) return;
+    handleSignIn(acc.email, acc.password);
   };
 
   return (
@@ -54,24 +85,17 @@ function LoginPage() {
           className="mt-8 space-y-3"
           onSubmit={(e) => {
             e.preventDefault();
-            const user = authenticateLocalUser(username, password);
-            if (!user) {
-              setError("Identifiant ou mot de passe incorrect.");
-              return;
-            }
-            setError(null);
-            setActiveSession(user);
-            goToRole(user.role);
+            handleSignIn(username, password);
           }}
         >
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Identifiant (Username)
+              Email ou identifiant
             </label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="ex. eleve_jean"
+              placeholder="ex. eleve@europermis.fr"
               className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary"
             />
           </div>
@@ -89,8 +113,10 @@ function LoginPage() {
           </div>
           <button
             type="submit"
-            className="mt-2 w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            disabled={loading}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
           >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Se connecter
           </button>
           {error && (
@@ -111,32 +137,33 @@ function LoginPage() {
         <div className="space-y-3">
           <DemoButton
             label="Tester l'Espace Élève"
-            sub="eleve_jean"
+            sub="eleve@europermis.fr"
             icon={GraduationCap}
-            onClick={() => {
-              startDemoSession("student");
-              navigate({ to: "/student" });
-            }}
+            onClick={() => demoLogin("eleve@europermis.fr")}
           />
           <DemoButton
             label="Tester l'Espace Moniteur"
-            sub="moniteur_karim"
+            sub="moniteur@europermis.fr"
             icon={UserCog}
-            onClick={() => {
-              startDemoSession("instructor");
-              navigate({ to: "/instructor" });
-            }}
+            onClick={() => demoLogin("moniteur@europermis.fr")}
           />
           <DemoButton
             label="Tester l'Espace Secrétaire (Admin)"
-            sub="admin_secretaire"
+            sub="admin@europermis.fr"
             icon={ShieldCheck}
-            onClick={() => {
-              startDemoSession("admin");
-              navigate({ to: "/admin" });
-            }}
+            onClick={() => demoLogin("admin@europermis.fr")}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={handleSeed}
+          disabled={seeding}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-60"
+        >
+          {seeding && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          Initialiser / réinitialiser les comptes démo
+        </button>
 
         <p className="mt-8 text-center text-[11px] text-muted-foreground">
           56-58 Avenue Paul Valéry, 95200 Sarcelles · 01 34 29 01 54
