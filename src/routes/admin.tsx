@@ -51,6 +51,11 @@ function isActiveStudent(s: StoredStudentProfile) {
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Espace Admin — Euro-Permis Sarcelles" }] }),
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const session = getActiveSession();
+    if (!session || session.role !== "admin") throw redirect({ to: "/" });
+  },
   component: AdminApp,
 });
 
