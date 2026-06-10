@@ -44,9 +44,9 @@
   --card-foreground: oklch(0.97 0.01 250);
   --popover: oklch(0.24 0.045 275);
   --popover-foreground: oklch(0.97 0.01 250);
-  /* Vert émeraude #0D9488 */
-  --primary: oklch(0.62 0.12 180);
-  --primary-foreground: oklch(0.99 0 0);
+  /* Vert émeraude */
+  --primary: oklch(0.68 0.17 150);
+  --primary-foreground: oklch(0.12 0.02 150);
   --secondary: oklch(0.30 0.04 275);
   --secondary-foreground: oklch(0.97 0.01 250);
   --muted: oklch(0.28 0.035 275);
