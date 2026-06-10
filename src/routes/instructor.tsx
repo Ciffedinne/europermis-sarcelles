@@ -39,6 +39,11 @@ import {
 
 export const Route = createFileRoute("/instructor")({
   head: () => ({ meta: [{ title: "Espace Moniteur — Euro-Permis Sarcelles" }] }),
+  beforeLoad: () => {
+    if (typeof window === "undefined") return;
+    const session = getActiveSession();
+    if (!session || session.role !== "instructor") throw redirect({ to: "/" });
+  },
   component: InstructorApp,
 });
 
