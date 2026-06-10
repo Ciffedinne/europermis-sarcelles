@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { GraduationCap, UserCog, ShieldCheck, Car } from "lucide-react";
+import { GraduationCap, UserCog, ShieldCheck } from "lucide-react";
+import logoAsset from "@/assets/logo-blanc.webp.asset.json";
 import {
   authenticateLocalUser,
   setActiveSession,
@@ -38,8 +39,8 @@ function LoginPage() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-md px-5 pb-10 pt-12">
         <div className="flex flex-col items-center text-center">
-          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/15 text-primary">
-            <Car className="h-8 w-8" />
+          <div className="grid h-24 w-24 place-items-center rounded-2xl bg-primary/15 p-3">
+            <img src={logoAsset.url} alt="Logo Euro-Permis Sarcelles" className="h-full w-full object-contain" />
           </div>
           <h1 className="mt-4 text-2xl font-bold tracking-tight">
             Euro-Permis Sarcelles
