@@ -48,12 +48,14 @@ function LoginPage() {
   };
 
   const handleSeed = async () => {
+    const secret = window.prompt("Entrez le secret d'initialisation (SEED_SECRET) :");
+    if (!secret) return;
     setSeeding(true);
     try {
-      await seedDemoAccounts();
+      await seedDemoAccounts({ data: { secret } });
       toast.success("Comptes démo initialisés. Vous pouvez maintenant vous connecter.");
     } catch (e) {
-      toast.error("Échec de l'initialisation des comptes démo.");
+      toast.error("Échec : secret invalide ou serveur non configuré.");
       console.error(e);
     } finally {
       setSeeding(false);

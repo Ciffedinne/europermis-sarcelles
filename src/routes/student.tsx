@@ -24,7 +24,8 @@ import { getAppreciationsForStudent } from "@/lib/appreciations";
 export const Route = createFileRoute("/student")({
   head: () => ({ meta: [{ title: "Espace Élève — Euro-Permis Sarcelles" }] }),
   beforeLoad: () => {
-    if (typeof window === "undefined") return;
+    // SECURITY FIX: Do NOT skip the guard on the server (SSR).
+    // See admin.tsx for full explanation.
     const session = getActiveSession();
     if (!session || session.role !== "student") throw redirect({ to: "/" });
   },

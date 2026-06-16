@@ -30,8 +30,32 @@ export const DEMO_ACCOUNTS = [
 /**
  * Provision (or refresh) the three demo accounts on the backend.
  * Idempotent: safe to call repeatedly. Uses the service-role client.
+ *
+ * SECURITY: Protected by SEED_SECRET env variable. Requests without the
+ * correct secret are rejected with 403 before any admin operation is performed.
  */
-export const seedDemoAccounts = createServerFn({ method: "POST" }).handler(async () => {
+export const seedDemoAccounts = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !("secret" in data) ||
+      typeof (data as Record<string, unknown>).secret !== "string"
+    ) {
+      throw new Error("Missing or invalid secret");
+    }
+    return data as { secret: string };
+  })
+  .handler(async ({ data }) => {
+  // Verify the caller knows the seed secret before any admin operation.
+  const expectedSecret = process.env.SEED_SECRET;
+  if (!expectedSecret) {
+    throw new Error("SEED_SECRET is not configured on this server.");
+  }
+  if (data.secret !== expectedSecret) {
+    throw new Error("Forbidden: invalid seed secret.");
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const created: string[] = [];

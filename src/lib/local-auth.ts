@@ -15,9 +15,17 @@ export type StoredStudentProfile = {
   pkg: string;
   hours: string;
   username: string;
+  /**
+   * SECURITY: passwords are stored only transiently for the local mock-auth
+   * flow and are never written to localStorage. Any read from this field
+   * should come from in-memory structures only (DEMO_AUTH_USERS, runtime state).
+   * @deprecated Do not persist this field to localStorage.
+   */
   password: string;
   source: "seed" | "import";
   createdAt?: number;
+  // NOTE: Fields below are intentionally NOT persisted to localStorage.
+  // They are kept in the type for in-memory use during the session only.
   adresse?: string;
   codePostal?: string;
   ville?: string;
@@ -94,16 +102,55 @@ export function getStoredStudents() {
   return readJson<StoredStudentProfile[]>(STUDENTS_STORAGE_KEY, []);
 }
 
+/**
+ * Fields that must never be written to localStorage for privacy/security reasons.
+ * Passwords, PII (address, phone, email, birth details) stay in memory only.
+ */
+const SENSITIVE_FIELDS: (keyof StoredStudentProfile)[] = [
+  "password",
+  "adresse",
+  "codePostal",
+  "ville",
+  "pays",
+  "telephone",
+  "email",
+  "dateNaissance",
+  "lieuNaissance",
+  "departementNaissance",
+  "paysNaissance",
+  "datePremierPermis",
+];
+
+function stripSensitiveFields(student: StoredStudentProfile): Omit<StoredStudentProfile, typeof SENSITIVE_FIELDS[number]> {
+  const safe = { ...student } as Record<string, unknown>;
+  for (const field of SENSITIVE_FIELDS) {
+    delete safe[field];
+  }
+  return safe as StoredStudentProfile;
+}
+
 export function saveStoredStudents(students: StoredStudentProfile[]) {
-  writeJson(STUDENTS_STORAGE_KEY, students);
+  // Strip sensitive fields before persisting — passwords and PII never go to localStorage.
+  writeJson(STUDENTS_STORAGE_KEY, students.map(stripSensitiveFields));
 }
 
 export function getStoredAuthUsers() {
   return readJson<MockAuthUser[]>(AUTH_USERS_STORAGE_KEY, []);
 }
 
+const SENSITIVE_AUTH_FIELDS: (keyof MockAuthUser)[] = ["password"];
+
+function stripSensitiveAuthFields(user: MockAuthUser): Omit<MockAuthUser, "password"> {
+  const safe = { ...user } as Record<string, unknown>;
+  for (const field of SENSITIVE_AUTH_FIELDS) {
+    delete safe[field];
+  }
+  return safe as MockAuthUser;
+}
+
 export function saveStoredAuthUsers(users: MockAuthUser[]) {
-  writeJson(AUTH_USERS_STORAGE_KEY, users);
+  // Strip passwords before persisting — they must never reach localStorage.
+  writeJson(AUTH_USERS_STORAGE_KEY, users.map(stripSensitiveAuthFields));
 }
 
 export function syncStudentAuthUsers(students: StoredStudentProfile[]) {

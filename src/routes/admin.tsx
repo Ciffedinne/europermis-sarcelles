@@ -52,7 +52,13 @@ function isActiveStudent(s: StoredStudentProfile) {
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Espace Admin — Euro-Permis Sarcelles" }] }),
   beforeLoad: () => {
-    if (typeof window === "undefined") return;
+    // SECURITY FIX: Do NOT skip the guard on the server (SSR).
+    // Returning early when `window === undefined` allows the server to render
+    // and send the full protected HTML to unauthenticated HTTP requests.
+    // Instead, we check the session on both client and server.
+    // On the server the session will always be null (no localStorage),
+    // so SSR of protected routes is intentionally disabled — the redirect
+    // fires immediately and the client handles the authenticated render.
     const session = getActiveSession();
     if (!session || session.role !== "admin") throw redirect({ to: "/" });
   },

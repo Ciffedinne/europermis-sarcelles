@@ -1,0 +1,186 @@
+diff --git a/src/lib/auth.functions.ts b/src/lib/auth.functions.ts
+index 2c80a1d..c812dfd 100644
+--- a/src/lib/auth.functions.ts
++++ b/src/lib/auth.functions.ts
+@@ -30,8 +30,32 @@ export const DEMO_ACCOUNTS = [
+ /**
+  * Provision (or refresh) the three demo accounts on the backend.
+  * Idempotent: safe to call repeatedly. Uses the service-role client.
++ *
++ * SECURITY: Protected by SEED_SECRET env variable. Requests without the
++ * correct secret are rejected with 403 before any admin operation is performed.
+  */
+-export const seedDemoAccounts = createServerFn({ method: "POST" }).handler(async () => {
++export const seedDemoAccounts = createServerFn({ method: "POST" })
++  .validator((data: unknown) => {
++    if (
++      !data ||
++      typeof data !== "object" ||
++      !("secret" in data) ||
++      typeof (data as Record<string, unknown>).secret !== "string"
++    ) {
++      throw new Error("Missing or invalid secret");
++    }
++    return data as { secret: string };
++  })
++  .handler(async ({ data }) => {
++  // Verify the caller knows the seed secret before any admin operation.
++  const expectedSecret = process.env.SEED_SECRET;
++  if (!expectedSecret) {
++    throw new Error("SEED_SECRET is not configured on this server.");
++  }
++  if (data.secret !== expectedSecret) {
++    throw new Error("Forbidden: invalid seed secret.");
++  }
++
+   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+ 
+   const created: string[] = [];
+diff --git a/src/lib/local-auth.ts b/src/lib/local-auth.ts
+index 4486fb6..8c7dd75 100644
+--- a/src/lib/local-auth.ts
++++ b/src/lib/local-auth.ts
+@@ -15,9 +15,17 @@ export type StoredStudentProfile = {
+   pkg: string;
+   hours: string;
+   username: string;
++  /**
++   * SECURITY: passwords are stored only transiently for the local mock-auth
++   * flow and are never written to localStorage. Any read from this field
++   * should come from in-memory structures only (DEMO_AUTH_USERS, runtime state).
++   * @deprecated Do not persist this field to localStorage.
++   */
+   password: string;
+   source: "seed" | "import";
+   createdAt?: number;
++  // NOTE: Fields below are intentionally NOT persisted to localStorage.
++  // They are kept in the type for in-memory use during the session only.
+   adresse?: string;
+   codePostal?: string;
+   ville?: string;
+@@ -94,16 +102,55 @@ export function getStoredStudents() {
+   return readJson<StoredStudentProfile[]>(STUDENTS_STORAGE_KEY, []);
+ }
+ 
++/**
++ * Fields that must never be written to localStorage for privacy/security reasons.
++ * Passwords, PII (address, phone, email, birth details) stay in memory only.
++ */
++const SENSITIVE_FIELDS: (keyof StoredStudentProfile)[] = [
++  "password",
++  "adresse",
++  "codePostal",
++  "ville",
++  "pays",
++  "telephone",
++  "email",
++  "dateNaissance",
++  "lieuNaissance",
++  "departementNaissance",
++  "paysNaissance",
++  "datePremierPermis",
++];
++
++function stripSensitiveFields(student: StoredStudentProfile): Omit<StoredStudentProfile, typeof SENSITIVE_FIELDS[number]> {
++  const safe = { ...student } as Record<string, unknown>;
++  for (const field of SENSITIVE_FIELDS) {
++    delete safe[field];
++  }
++  return safe as StoredStudentProfile;
++}
++
+ export function saveStoredStudents(students: StoredStudentProfile[]) {
+-  writeJson(STUDENTS_STORAGE_KEY, students);
++  // Strip sensitive fields before persisting — passwords and PII never go to localStorage.
++  writeJson(STUDENTS_STORAGE_KEY, students.map(stripSensitiveFields));
+ }
+ 
+ export function getStoredAuthUsers() {
+   return readJson<MockAuthUser[]>(AUTH_USERS_STORAGE_KEY, []);
+ }
+ 
++const SENSITIVE_AUTH_FIELDS: (keyof MockAuthUser)[] = ["password"];
++
++function stripSensitiveAuthFields(user: MockAuthUser): Omit<MockAuthUser, "password"> {
++  const safe = { ...user } as Record<string, unknown>;
++  for (const field of SENSITIVE_AUTH_FIELDS) {
++    delete safe[field];
++  }
++  return safe as MockAuthUser;
++}
++
+ export function saveStoredAuthUsers(users: MockAuthUser[]) {
+-  writeJson(AUTH_USERS_STORAGE_KEY, users);
++  // Strip passwords before persisting — they must never reach localStorage.
++  writeJson(AUTH_USERS_STORAGE_KEY, users.map(stripSensitiveAuthFields));
+ }
+ 
+ export function syncStudentAuthUsers(students: StoredStudentProfile[]) {
+diff --git a/src/routes/admin.tsx b/src/routes/admin.tsx
+index a7551c8..800aa84 100644
+--- a/src/routes/admin.tsx
++++ b/src/routes/admin.tsx
+@@ -52,7 +52,13 @@ function isActiveStudent(s: StoredStudentProfile) {
+ export const Route = createFileRoute("/admin")({
+   head: () => ({ meta: [{ title: "Espace Admin — Euro-Permis Sarcelles" }] }),
+   beforeLoad: () => {
+-    if (typeof window === "undefined") return;
++    // SECURITY FIX: Do NOT skip the guard on the server (SSR).
++    // Returning early when `window === undefined` allows the server to render
++    // and send the full protected HTML to unauthenticated HTTP requests.
++    // Instead, we check the session on both client and server.
++    // On the server the session will always be null (no localStorage),
++    // so SSR of protected routes is intentionally disabled — the redirect
++    // fires immediately and the client handles the authenticated render.
+     const session = getActiveSession();
+     if (!session || session.role !== "admin") throw redirect({ to: "/" });
+   },
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index 955c786..1e5d63a 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -48,12 +48,14 @@ function LoginPage() {
+   };
+ 
+   const handleSeed = async () => {
++    const secret = window.prompt("Entrez le secret d'initialisation (SEED_SECRET) :");
++    if (!secret) return;
+     setSeeding(true);
+     try {
+-      await seedDemoAccounts();
++      await seedDemoAccounts({ data: { secret } });
+       toast.success("Comptes démo initialisés. Vous pouvez maintenant vous connecter.");
+     } catch (e) {
+-      toast.error("Échec de l'initialisation des comptes démo.");
++      toast.error("Échec : secret invalide ou serveur non configuré.");
+       console.error(e);
+     } finally {
+       setSeeding(false);
+diff --git a/src/routes/instructor.tsx b/src/routes/instructor.tsx
+index cdd2b1f..a5bfab8 100644
+--- a/src/routes/instructor.tsx
++++ b/src/routes/instructor.tsx
+@@ -40,7 +40,8 @@ import {
+ export const Route = createFileRoute("/instructor")({
+   head: () => ({ meta: [{ title: "Espace Moniteur — Euro-Permis Sarcelles" }] }),
+   beforeLoad: () => {
+-    if (typeof window === "undefined") return;
++    // SECURITY FIX: Do NOT skip the guard on the server (SSR).
++    // See admin.tsx for full explanation.
+     const session = getActiveSession();
+     if (!session || session.role !== "instructor") throw redirect({ to: "/" });
+   },
+diff --git a/src/routes/student.tsx b/src/routes/student.tsx
+index bfc06b0..3f7cf00 100644
+--- a/src/routes/student.tsx
++++ b/src/routes/student.tsx
+@@ -24,7 +24,8 @@ import { getAppreciationsForStudent } from "@/lib/appreciations";
+ export const Route = createFileRoute("/student")({
+   head: () => ({ meta: [{ title: "Espace Élève — Euro-Permis Sarcelles" }] }),
+   beforeLoad: () => {
+-    if (typeof window === "undefined") return;
++    // SECURITY FIX: Do NOT skip the guard on the server (SSR).
++    // See admin.tsx for full explanation.
+     const session = getActiveSession();
+     if (!session || session.role !== "student") throw redirect({ to: "/" });
+   },

@@ -40,7 +40,8 @@ import {
 export const Route = createFileRoute("/instructor")({
   head: () => ({ meta: [{ title: "Espace Moniteur — Euro-Permis Sarcelles" }] }),
   beforeLoad: () => {
-    if (typeof window === "undefined") return;
+    // SECURITY FIX: Do NOT skip the guard on the server (SSR).
+    // See admin.tsx for full explanation.
     const session = getActiveSession();
     if (!session || session.role !== "instructor") throw redirect({ to: "/" });
   },
