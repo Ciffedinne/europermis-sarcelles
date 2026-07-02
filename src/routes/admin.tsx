@@ -140,6 +140,7 @@ function AdminApp() {
 
   const addImported = (rows: Omit<ManagedStudent, "id" | "username" | "password" | "pkg" | "hours" | "source">[]) => {
     let added = 0;
+    const newlyCreated: ManagedStudent[] = [];
     setStudents((prev) => {
       const byNeph = new Map(prev.map((s) => [s.neph, s]));
       for (const r of rows) {
@@ -155,6 +156,7 @@ function AdminApp() {
           createdAt: Date.now() + added,
         };
         byNeph.set(created.neph, created);
+        newlyCreated.push(created);
         added++;
       }
       return Array.from(byNeph.values());
@@ -165,6 +167,54 @@ function AdminApp() {
         : `${added} compte${added > 1 ? "s" : ""} élève créé${added > 1 ? "s" : ""} et ajouté${added > 1 ? "s" : ""}.`,
     );
     setTab("students");
+
+    // Provision Cloud accounts (Supabase Auth) — same pattern as demo accounts.
+    if (newlyCreated.length > 0) {
+      const users: ProvisionInput[] = newlyCreated.map((s) => ({
+        role: "student",
+        email: (s.email && s.email.includes("@") ? s.email : `${s.username}@eleves.europermis.fr`).toLowerCase(),
+        // Password = NEPH (or fallback). Must be ≥6 chars — pad if needed.
+        password: (s.password && s.password.length >= 6) ? s.password : `${s.password}Demo!`,
+        firstName: s.prenom,
+        lastName: s.nom,
+        displayName: `${s.prenom} ${s.nom}`.trim(),
+        student: {
+          civilite: s.civilite,
+          dateNaissance: s.dateNaissance,
+          lieuNaissance: s.lieuNaissance,
+          departementNaissance: s.departementNaissance,
+          paysNaissance: s.paysNaissance,
+          neph: s.neph,
+          pkg: s.pkg,
+          hours: s.hours,
+          adresse: s.adresse,
+          codePostal: s.codePostal,
+          ville: s.ville,
+          pays: s.pays,
+          telephone: s.telephone,
+          username: s.username,
+          datePremierPermis: s.datePremierPermis,
+          source: "import",
+        },
+      }));
+      toast.info("Création des comptes Cloud en cours…");
+      provisionAccounts({ data: { users } })
+        .then((res) => {
+          const c = res.created.length;
+          const s = res.skipped.length;
+          const e = res.errors.length;
+          if (e > 0) {
+            toast.error(`Comptes Cloud : ${c} créés, ${s} déjà existants, ${e} en erreur.`);
+            console.error("Provision errors:", res.errors);
+          } else {
+            toast.success(`Comptes Cloud : ${c} créés${s > 0 ? `, ${s} déjà existants` : ""}.`);
+          }
+        })
+        .catch((err) => {
+          console.error(err);
+          toast.error("Échec création des comptes Cloud (droits admin requis).");
+        });
+    }
   };
 
   const deleteStudent = (id: string) => {
