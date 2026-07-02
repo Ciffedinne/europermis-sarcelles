@@ -35,7 +35,7 @@ export const DEMO_ACCOUNTS = [
  * correct secret are rejected with 403 before any admin operation is performed.
  */
 export const seedDemoAccounts = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
+  .inputValidator((data: unknown) => {
     if (
       !data ||
       typeof data !== "object" ||
