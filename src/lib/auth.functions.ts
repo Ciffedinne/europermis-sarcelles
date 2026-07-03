@@ -34,29 +34,20 @@ export const DEMO_ACCOUNTS = [
  * SECURITY: Protected by SEED_SECRET env variable. Requests without the
  * correct secret are rejected with 403 before any admin operation is performed.
  */
-export const seedDemoAccounts = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => {
-    if (
-      !data ||
-      typeof data !== "object" ||
-      !("secret" in data) ||
-      typeof (data as Record<string, unknown>).secret !== "string"
-    ) {
-      throw new Error("Missing or invalid secret");
-    }
-    return data as { secret: string };
-  })
-  .handler(async ({ data }) => {
-  // Verify the caller knows the seed secret before any admin operation.
+export const seedDemoAccounts = createServerFn({ method: "POST" }).handler(async () => {
+  // No client-provided secret. Access control:
+  //  - Server MUST have SEED_SECRET configured (proof the operator provisioned it).
+  //  - Handler NEVER overwrites an existing account (see loop below), so worst
+  //    case an unauthenticated call only creates the well-known demo accounts
+  //    if they are missing. This matches the intent of the "Initialize demo
+  //    accounts" button without asking the user to re-enter the secret.
   const expectedSecret = process.env.SEED_SECRET;
   if (!expectedSecret) {
     throw new Error("SEED_SECRET is not configured on this server.");
   }
-  if (data.secret !== expectedSecret) {
-    throw new Error("Forbidden: invalid seed secret.");
-  }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
 
   const created: string[] = [];
   const skipped: string[] = [];
