@@ -48,8 +48,9 @@ function LoginPage() {
   };
 
   const handleSeed = async () => {
-    const secret = window.prompt("Entrez le secret d'initialisation (SEED_SECRET) :");
-    if (!secret) return;
+    const raw = window.prompt("Entrez le secret d'initialisation (SEED_SECRET) :");
+    if (!raw) return;
+    const secret = raw.trim();
     setSeeding(true);
     try {
       await seedDemoAccounts({ data: { secret } });
