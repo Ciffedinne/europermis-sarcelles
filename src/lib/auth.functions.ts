@@ -60,11 +60,30 @@ export const seedDemoAccounts = createServerFn({ method: "POST" }).handler(async
   );
 
   for (const acc of DEMO_ACCOUNTS) {
-    // SECURITY: if the account already exists we do NOT touch it —
-    // no password reset, no role change. This prevents a leaked SEED_SECRET
-    // from being used to reset a live admin/instructor password to the
-    // well-known DEMO_ACCOUNTS value.
-    if (existingByEmail.has(acc.email.toLowerCase())) {
+    const existing = existingByEmail.get(acc.email.toLowerCase());
+    if (existing) {
+      // Refresh password + metadata so the well-known demo credentials always work.
+      const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+        password: acc.password,
+        email_confirm: true,
+        user_metadata: {
+          display_name: acc.displayName,
+          first_name: acc.firstName,
+          last_name: acc.lastName,
+        },
+      });
+      if (updErr) {
+        throw new Error(`Cannot refresh ${acc.email}: ${updErr.message}`);
+      }
+      await supabaseAdmin.from("profiles").upsert({
+        id: existing.id,
+        display_name: acc.displayName,
+        first_name: acc.firstName,
+        last_name: acc.lastName,
+      });
+      await supabaseAdmin
+        .from("user_roles")
+        .upsert({ user_id: existing.id, role: acc.role }, { onConflict: "user_id,role" });
       skipped.push(acc.email);
       continue;
     }
