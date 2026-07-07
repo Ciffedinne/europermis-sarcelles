@@ -49,11 +49,12 @@ function normalizeEmail(raw: string) {
  */
 export const provisionAccounts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown): { users: ProvisionInput[] } => {
+  .inputValidator((data: unknown): { users: ProvisionInput[]; resetPassword?: boolean } => {
     if (!data || typeof data !== "object" || !("users" in data)) {
       throw new Error("Missing users payload");
     }
     const users = (data as { users: unknown }).users;
+    const resetPassword = Boolean((data as { resetPassword?: unknown }).resetPassword);
     if (!Array.isArray(users)) throw new Error("users must be an array");
     for (const u of users) {
       if (!u || typeof u !== "object") throw new Error("Invalid user entry");
@@ -68,7 +69,7 @@ export const provisionAccounts = createServerFn({ method: "POST" })
         throw new Error(`Invalid role for ${r.email}`);
       }
     }
-    return { users: users as ProvisionInput[] };
+    return { users: users as ProvisionInput[], resetPassword };
   })
   .handler(async ({ data, context }): Promise<ProvisionResult> => {
     // Authorization: caller must be admin.
@@ -99,9 +100,30 @@ export const provisionAccounts = createServerFn({ method: "POST" })
         const existing = existingByEmail.get(email);
 
         if (existing) {
-          // Never touch existing accounts (no password reset).
           userId = existing.id;
+          if (data.resetPassword) {
+            // Explicit password reset requested — replace old credential.
+            const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+              password: u.password,
+              email_confirm: true,
+            });
+            if (updErr) {
+              errors.push({ email, message: `password reset failed: ${updErr.message}` });
+              continue;
+            }
+          }
           skipped.push(email);
+          // Ensure role + profile exist even for pre-existing accounts.
+          const displayName = u.displayName ?? `${u.firstName} ${u.lastName}`.trim();
+          await supabaseAdmin.from("profiles").upsert({
+            id: userId,
+            display_name: displayName,
+            first_name: u.firstName,
+            last_name: u.lastName,
+          });
+          await supabaseAdmin
+            .from("user_roles")
+            .upsert({ user_id: userId, role: u.role }, { onConflict: "user_id,role" });
         } else {
           const displayName = u.displayName ?? `${u.firstName} ${u.lastName}`.trim();
           const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
@@ -168,4 +190,72 @@ export const provisionAccounts = createServerFn({ method: "POST" })
     }
 
     return { ok: errors.length === 0, created, skipped, errors };
+  });
+
+export type ResetStudentsResult = {
+  ok: boolean;
+  deletedAuth: number;
+  deletedStudents: number;
+  errors: { email: string; message: string }[];
+};
+
+/**
+ * Purge ALL student accounts (auth + public.students + public.user_roles rows for role=student).
+ * Admin-only. Preserves admin & instructor accounts. Destructive and irreversible.
+ */
+export const resetStudentAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ResetStudentsResult> => {
+    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleErr || !isAdmin) throw new Error("Forbidden: admin role required");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Collect all user_ids currently flagged as students.
+    const { data: studentRoles, error: rolesErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "student");
+    if (rolesErr) throw new Error(`Cannot list student roles: ${rolesErr.message}`);
+
+    const studentUserIds = Array.from(
+      new Set((studentRoles ?? []).map((r) => r.user_id).filter(Boolean)),
+    );
+
+    // Delete public.students rows (all — this table only holds students).
+    const { count: deletedStudents } = await supabaseAdmin
+      .from("students")
+      .delete({ count: "exact" })
+      .not("id", "is", null);
+
+    // Delete student role rows.
+    if (studentUserIds.length > 0) {
+      await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .in("user_id", studentUserIds)
+        .eq("role", "student");
+    }
+
+    // Delete auth users (cascades profiles via trigger/FK if present).
+    const errors: { email: string; message: string }[] = [];
+    let deletedAuth = 0;
+    for (const uid of studentUserIds) {
+      const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(uid);
+      if (delErr) {
+        errors.push({ email: uid, message: delErr.message });
+      } else {
+        deletedAuth++;
+      }
+    }
+
+    return {
+      ok: errors.length === 0,
+      deletedAuth,
+      deletedStudents: deletedStudents ?? 0,
+      errors,
+    };
   });
