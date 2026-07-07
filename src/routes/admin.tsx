@@ -202,7 +202,7 @@ function AdminApp() {
     }));
 
     toast.info(`Création des comptes Cloud (${users.length}) en cours…`);
-    provisionAccounts({ data: { users } })
+    provisionAccounts({ data: { users, resetPassword: true } })
       .then((res) => {
         const c = res.created.length;
         const sk = res.skipped.length;
