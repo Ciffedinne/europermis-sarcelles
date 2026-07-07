@@ -191,3 +191,71 @@ export const provisionAccounts = createServerFn({ method: "POST" })
 
     return { ok: errors.length === 0, created, skipped, errors };
   });
+
+export type ResetStudentsResult = {
+  ok: boolean;
+  deletedAuth: number;
+  deletedStudents: number;
+  errors: { email: string; message: string }[];
+};
+
+/**
+ * Purge ALL student accounts (auth + public.students + public.user_roles rows for role=student).
+ * Admin-only. Preserves admin & instructor accounts. Destructive and irreversible.
+ */
+export const resetStudentAccounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ResetStudentsResult> => {
+    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleErr || !isAdmin) throw new Error("Forbidden: admin role required");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Collect all user_ids currently flagged as students.
+    const { data: studentRoles, error: rolesErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "student");
+    if (rolesErr) throw new Error(`Cannot list student roles: ${rolesErr.message}`);
+
+    const studentUserIds = Array.from(
+      new Set((studentRoles ?? []).map((r) => r.user_id).filter(Boolean)),
+    );
+
+    // Delete public.students rows (all — this table only holds students).
+    const { count: deletedStudents } = await supabaseAdmin
+      .from("students")
+      .delete({ count: "exact" })
+      .not("id", "is", null);
+
+    // Delete student role rows.
+    if (studentUserIds.length > 0) {
+      await supabaseAdmin
+        .from("user_roles")
+        .delete()
+        .in("user_id", studentUserIds)
+        .eq("role", "student");
+    }
+
+    // Delete auth users (cascades profiles via trigger/FK if present).
+    const errors: { email: string; message: string }[] = [];
+    let deletedAuth = 0;
+    for (const uid of studentUserIds) {
+      const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(uid);
+      if (delErr) {
+        errors.push({ email: uid, message: delErr.message });
+      } else {
+        deletedAuth++;
+      }
+    }
+
+    return {
+      ok: errors.length === 0,
+      deletedAuth,
+      deletedStudents: deletedStudents ?? 0,
+      errors,
+    };
+  });
