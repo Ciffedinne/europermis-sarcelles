@@ -49,11 +49,12 @@ function normalizeEmail(raw: string) {
  */
 export const provisionAccounts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown): { users: ProvisionInput[] } => {
+  .inputValidator((data: unknown): { users: ProvisionInput[]; resetPassword?: boolean } => {
     if (!data || typeof data !== "object" || !("users" in data)) {
       throw new Error("Missing users payload");
     }
     const users = (data as { users: unknown }).users;
+    const resetPassword = Boolean((data as { resetPassword?: unknown }).resetPassword);
     if (!Array.isArray(users)) throw new Error("users must be an array");
     for (const u of users) {
       if (!u || typeof u !== "object") throw new Error("Invalid user entry");
@@ -68,7 +69,7 @@ export const provisionAccounts = createServerFn({ method: "POST" })
         throw new Error(`Invalid role for ${r.email}`);
       }
     }
-    return { users: users as ProvisionInput[] };
+    return { users: users as ProvisionInput[], resetPassword };
   })
   .handler(async ({ data, context }): Promise<ProvisionResult> => {
     // Authorization: caller must be admin.
