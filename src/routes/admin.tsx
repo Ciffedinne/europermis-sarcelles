@@ -230,7 +230,9 @@ function AdminApp() {
   };
 
   const resetAll = () => {
-    if (!window.confirm("Voulez-vous vraiment vider la liste des élèves ?")) return;
+    if (!window.confirm(
+      "Réinitialisation TOTALE des élèves : les comptes Cloud (auth + rôles + fiches) seront supprimés. Continuer ?",
+    )) return;
     setStudents([]);
     try {
       localStorage.removeItem(STUDENTS_STORAGE_KEY);
@@ -239,7 +241,24 @@ function AdminApp() {
     } catch {
       /* ignore */
     }
-    toast.success("Liste des élèves vidée.");
+    toast.info("Suppression des comptes élèves côté Cloud…");
+    resetStudentAccounts()
+      .then((res) => {
+        console.log("[resetStudentAccounts]", res);
+        if (res.errors.length > 0) {
+          toast.error(
+            `Réinit. partielle : ${res.deletedAuth} comptes supprimés, ${res.errors.length} en erreur.`,
+          );
+        } else {
+          toast.success(
+            `Réinit. Cloud : ${res.deletedAuth} comptes supprimés, ${res.deletedStudents} fiches purgées.`,
+          );
+        }
+      })
+      .catch((err) => {
+        console.error("[resetStudentAccounts] failed", err);
+        toast.error(`Échec Cloud : ${err instanceof Error ? err.message : "droits admin requis"}.`);
+      });
   };
 
   return (
