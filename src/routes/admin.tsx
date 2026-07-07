@@ -39,7 +39,7 @@ import {
   syncStudentAuthUsers,
   type StoredStudentProfile,
 } from "@/lib/local-auth";
-import { provisionAccounts, type ProvisionInput } from "@/lib/provision.functions";
+import { provisionAccounts, resetStudentAccounts, type ProvisionInput } from "@/lib/provision.functions";
 
 type SortKey = "recent" | "nameAsc" | "nameDesc" | "city";
 type StatusFilter = "all" | "active" | "inactive";
