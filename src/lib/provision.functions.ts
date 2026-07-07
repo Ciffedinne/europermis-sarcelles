@@ -100,9 +100,30 @@ export const provisionAccounts = createServerFn({ method: "POST" })
         const existing = existingByEmail.get(email);
 
         if (existing) {
-          // Never touch existing accounts (no password reset).
           userId = existing.id;
+          if (data.resetPassword) {
+            // Explicit password reset requested — replace old credential.
+            const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+              password: u.password,
+              email_confirm: true,
+            });
+            if (updErr) {
+              errors.push({ email, message: `password reset failed: ${updErr.message}` });
+              continue;
+            }
+          }
           skipped.push(email);
+          // Ensure role + profile exist even for pre-existing accounts.
+          const displayName = u.displayName ?? `${u.firstName} ${u.lastName}`.trim();
+          await supabaseAdmin.from("profiles").upsert({
+            id: userId,
+            display_name: displayName,
+            first_name: u.firstName,
+            last_name: u.lastName,
+          });
+          await supabaseAdmin
+            .from("user_roles")
+            .upsert({ user_id: userId, role: u.role }, { onConflict: "user_id,role" });
         } else {
           const displayName = u.displayName ?? `${u.firstName} ${u.lastName}`.trim();
           const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
