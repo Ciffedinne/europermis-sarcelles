@@ -739,7 +739,17 @@ function StudentDetailDialog({
                   </p>
                 </div>
                 <InfoRow label="Identifiant" value={student.username} mono />
-                <InfoRow label="Mot de passe" value={student.password} mono />
+                <InfoRow
+                  label="Mot de passe"
+                  value={
+                    student.password ||
+                    (student.neph && student.neph.length >= 6
+                      ? student.neph
+                      : `${student.neph || "tmp"}Demo!`)
+                  }
+                  mono
+                />
+
               </div>
 
               <div className="mt-2 grid grid-cols-2 gap-2">
