@@ -12,7 +12,9 @@ function resolveEmail(input: string) {
   const trimmed = input.trim();
   if (trimmed.includes("@")) return trimmed.toLowerCase();
   const lower = trimmed.toLowerCase();
-  return USERNAME_TO_EMAIL[lower] ?? lower;
+  if (USERNAME_TO_EMAIL[lower]) return USERNAME_TO_EMAIL[lower];
+  // Imported students use `${username}@eleves.europermis.fr` as their email.
+  return `${lower}@eleves.europermis.fr`;
 }
 
 export async function signInWithCredentials(
