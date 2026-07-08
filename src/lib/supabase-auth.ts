@@ -8,11 +8,15 @@ const USERNAME_TO_EMAIL: Record<string, string> = {
   eleve_jean: "eleve@europermis.fr",
 };
 
+const STUDENT_EMAIL_DOMAIN = "eleves.europermis.fr";
+
 function resolveEmail(input: string) {
   const trimmed = input.trim();
   if (trimmed.includes("@")) return trimmed.toLowerCase();
   const lower = trimmed.toLowerCase();
-  return USERNAME_TO_EMAIL[lower] ?? lower;
+  if (USERNAME_TO_EMAIL[lower]) return USERNAME_TO_EMAIL[lower];
+  // Imported students log in with just their username → append the domain.
+  return `${lower}@${STUDENT_EMAIL_DOMAIN}`;
 }
 
 export async function signInWithCredentials(
