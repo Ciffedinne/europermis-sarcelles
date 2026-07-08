@@ -91,14 +91,15 @@ function LoginPage() {
         >
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Email ou identifiant
+              Identifiant
             </label>
             <input
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="ex. eleve@europermis.fr"
+              placeholder="ex. prenom.nom"
               className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-primary"
             />
+
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
